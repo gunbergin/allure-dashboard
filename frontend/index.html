@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Allure Test Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="main-content">
+            <!-- Sidebar with Filters -->
+            <aside class="sidebar">
+                <div class="filter-section">
+                    <h3>Filters</h3>
+                    
+                    <div class="filter-group">
+                        <label for="projectFilter">Project</label>
+                        <select id="projectFilter">
+                            <option value="">All Projects</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="statusFilter">Status</label>
+                        <select id="statusFilter">
+                            <option value="">All Status</option>
+                            <option value="PASSED">Passed</option>
+                            <option value="FAILED">Failed</option>
+                            <option value="SKIPPED">Skipped</option>
+                            <option value="BROKEN">Broken</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="tagsFilter">Tags</label>
+                        <div id="tagsContainer" class="tags-container"></div>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="startDate">Start Date</label>
+                        <input type="date" id="startDate">
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="endDate">End Date</label>
+                        <input type="date" id="endDate">
+                    </div>
+
+                    <div class="filter-actions">
+                        <button id="applyFilters" class="btn btn-primary">Apply Filters</button>
+                        <button id="clearFilters" class="btn btn-secondary">Clear</button>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main class="content">
+                <!-- Statistics Cards -->
+                <section class="stats-section">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalTests">0</div>
+                        <div class="stat-label">Total Tests</div>
+                    </div>
+                    <div class="stat-card passed">
+                        <div class="stat-value" id="passedTests">0</div>
+                        <div class="stat-label">Passed</div>
+                    </div>
+                    <div class="stat-card failed">
+                        <div class="stat-value" id="failedTests">0</div>
+                        <div class="stat-label">Failed</div>
+                    </div>
+                    <div class="stat-card skipped">
+                        <div class="stat-value" id="skippedTests">0</div>
+                        <div class="stat-label">Skipped</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="passRate">0%</div>
+                        <div class="stat-label">Pass Rate</div>
+                    </div>
+                </section>
+
+                <!-- Charts Section -->
+                <section class="charts-section">
+                    <div class="chart-container">
+                        <h3>Test Status Distribution</h3>
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Status Breakdown</h3>
+                        <canvas id="breakdownChart"></canvas>
+                    </div>
+                </section>
+
+                <!-- Results Table -->
+                <section class="results-section">
+                    <h2>Test Results</h2>
+                    <div id="loadingSpinner" class="spinner" style="display: none;"></div>
+                    <div id="resultsContainer" class="results-container">
+                        <table id="resultsTable" class="results-table">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>Status</th>
+                                    <th>Test Name</th>
+                                    <th>Project</th>
+                                    <th>Tags</th>
+                                    <th>Duration (ms)</th>
+                                    <th>Date/Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultsBody">
+                            </tbody>
+                        </table>
+                        <div id="noResults" class="no-results" style="display: none;">
+                            No test results found
+                        </div>
+                    </div>
+                    
+                    <!-- Test Details Modal -->
+                    <div id="detailsModal" class="modal" style="display: none;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h3 id="modalTitle"></h3>
+                                <button class="modal-close" onclick="closeDetailsModal()">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="test-details">
+                                    <div class="detail-row">
+                                        <strong>Status:</strong>
+                                        <span id="modalStatus"></span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <strong>Project:</strong>
+                                        <span id="modalProject"></span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <strong>Duration:</strong>
+                                        <span id="modalDuration"></span> ms
+                                    </div>
+                                    <div class="detail-row">
+                                        <strong>Timestamp:</strong>
+                                        <span id="modalTimestamp"></span>
+                                    </div>
+                                </div>
+                                
+                                <h4>Test Steps</h4>
+                                <div id="stepsContainer" class="steps-container">
+                                    <div class="no-steps">No steps recorded</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+
+        <!-- Error Toast -->
+        <div id="errorToast" class="toast toast-error" style="display: none;"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

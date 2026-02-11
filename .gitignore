@@ -1,0 +1,40 @@
+# Build results
+bin/
+obj/
+*.nupkg
+*.snupkg
+
+# Visual Studio cache/options directory
+.vs/
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# User-specific files
+*.suo
+*.user
+*.userprefs
+*.sln.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+logs/
+
+# Local test data
+allure-reports/
+
+# Node modules (if using npm in frontend)
+node_modules/
+package-lock.json
+yarn.lock
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
