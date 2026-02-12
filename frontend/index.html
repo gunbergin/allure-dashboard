@@ -66,7 +66,11 @@
 
                     <div class="filter-group">
                         <label for="tagsFilter">Tags</label>
-                        <div id="tagsContainer" class="tags-container"></div>
+                        <div class="tags-combobox">
+                            <input type="text" id="tagsSearch" placeholder="Search tags..." autocomplete="off" style="width:100%;margin-bottom:6px;">
+                            <div id="tagsDropdown" class="tags-dropdown"></div>
+                            <div id="selectedTags" class="selected-tags"></div>
+                        </div>
                     </div>
 
                     <div class="filter-group">

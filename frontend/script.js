@@ -22,12 +22,30 @@ async function init() {
         await loadTags();
         await loadDashboard();
         await loadTestCasesByTime();
-        
+
+        // Set default date values: startDate = 24 hours before today, endDate = today
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const endDateStr = `${yyyy}-${mm}-${dd}`;
+        // Calculate 24 hours before
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const prevYyyy = yesterday.getFullYear();
+        const prevMm = String(yesterday.getMonth() + 1).padStart(2, '0');
+        const prevDd = String(yesterday.getDate()).padStart(2, '0');
+        const startDateStr = `${prevYyyy}-${prevMm}-${prevDd}`;
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        if (startDateInput && !startDateInput.value) startDateInput.value = startDateStr;
+        if (endDateInput && !endDateInput.value) endDateInput.value = endDateStr;
+
         // Event listeners for filters
         document.getElementById('applyFilters').addEventListener('click', applyFilters);
         document.getElementById('clearFilters').addEventListener('click', clearFilters);
         document.getElementById('refreshBtn').addEventListener('click', refreshData);
-        
+
         // Apply filters on date changes
         document.getElementById('startDate').addEventListener('change', applyFilters);
         document.getElementById('endDate').addEventListener('change', applyFilters);
@@ -71,30 +89,71 @@ async function loadTags() {
 }
 
 function renderTagsFilter() {
-    const container = document.getElementById('tagsContainer');
-    container.innerHTML = '';
-    
-    allTags.forEach(tag => {
-        const label = document.createElement('label');
-        label.className = 'tag-checkbox';
-        
-        const input = document.createElement('input');
-        input.type = 'checkbox';
-        input.value = tag;
-        input.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                if (!currentFilters.tags.includes(tag)) {
-                    currentFilters.tags.push(tag);
+    const dropdown = document.getElementById('tagsDropdown');
+    const searchInput = document.getElementById('tagsSearch');
+    const selectedTagsDiv = document.getElementById('selectedTags');
+    dropdown.innerHTML = '';
+    let filteredTags = allTags;
+
+    function renderDropdown() {
+        dropdown.innerHTML = '';
+        filteredTags.forEach(tag => {
+            const label = document.createElement('label');
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = tag;
+            checkbox.checked = currentFilters.tags.includes(tag);
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    if (!currentFilters.tags.includes(tag)) currentFilters.tags.push(tag);
+                } else {
+                    currentFilters.tags = currentFilters.tags.filter(t => t !== tag);
                 }
-            } else {
-                currentFilters.tags = currentFilters.tags.filter(t => t !== tag);
-            }
+                renderDropdown();
+                renderSelectedTags();
+                applyFilters();
+            });
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(tag));
+            dropdown.appendChild(label);
         });
-        
-        label.appendChild(input);
-        label.appendChild(document.createTextNode(tag));
-        container.appendChild(label);
-    });
+    }
+
+    function renderSelectedTags() {
+        selectedTagsDiv.innerHTML = '';
+        currentFilters.tags.forEach(tag => {
+            const badge = document.createElement('span');
+            badge.className = 'tag-badge';
+            badge.textContent = tag;
+            const removeBtn = document.createElement('span');
+            removeBtn.className = 'remove-tag';
+            removeBtn.textContent = '×';
+            removeBtn.onclick = function() {
+                currentFilters.tags = currentFilters.tags.filter(t => t !== tag);
+                renderDropdown();
+                renderSelectedTags();
+                applyFilters();
+            };
+            badge.appendChild(removeBtn);
+            selectedTagsDiv.appendChild(badge);
+        });
+    }
+
+    searchInput.oninput = function() {
+        const val = searchInput.value.toLowerCase();
+        filteredTags = allTags.filter(tag => tag.toLowerCase().includes(val));
+        renderDropdown();
+    };
+
+    searchInput.onfocus = function() {
+        dropdown.classList.add('open');
+    };
+    searchInput.onblur = function() {
+        setTimeout(() => dropdown.classList.remove('open'), 150);
+    };
+
+    renderDropdown();
+    renderSelectedTags();
 }
 
 async function loadDashboard() {
