@@ -309,7 +309,7 @@ public class AllureService : IAllureService
                 results = results.Where(r => r.Project == filter.Project);
 
             if (filter.Tags?.Count > 0)
-                results = results.Where(r => r.Tags != null && r.Tags.Any(t => filter.Tags.Contains(t)));
+                results = results.Where(r => r.Tags != null && filter.Tags.All(t => r.Tags.Contains(t)));
 
             if (filter.StartDate.HasValue)
                 results = results.Where(r => r.Timestamp >= filter.StartDate.Value);
@@ -334,7 +334,7 @@ public class AllureService : IAllureService
                 testRuns = testRuns.Where(r => r.Results?.Any(t => t.Project == filter.Project) ?? false);
 
             if (filter.Tags?.Count > 0)
-                testRuns = testRuns.Where(r => r.Results?.Any(t => t.Tags != null && t.Tags.Any(tag => filter.Tags.Contains(tag))) ?? false);
+                testRuns = testRuns.Where(r => r.Results?.Any(t => t.Tags != null && filter.Tags.All(tag => t.Tags.Contains(tag))) ?? false);
 
             if (filter.StartDate.HasValue)
                 testRuns = testRuns.Where(r => r.StartTime >= filter.StartDate.Value);
@@ -386,12 +386,33 @@ public class AllureService : IAllureService
         return await Task.FromResult(_tags);
     }
 
-    public async Task<List<TimeGroupedTestCase>> GetTestCasesGroupedByTimeAsync()
+    public async Task<List<TimeGroupedTestCase>> GetTestCasesGroupedByTimeAsync(FilterRequest? filter = null)
     {
+        // First apply filters to get the filtered results
+        var filteredResults = _cachedResults.AsEnumerable();
+
+        if (filter != null)
+        {
+            if (!string.IsNullOrEmpty(filter.Project))
+                filteredResults = filteredResults.Where(r => r.Project == filter.Project);
+
+            if (filter.Tags?.Count > 0)
+                filteredResults = filteredResults.Where(r => r.Tags != null && filter.Tags.All(t => r.Tags.Contains(t)));
+
+            if (filter.StartDate.HasValue)
+                filteredResults = filteredResults.Where(r => r.Timestamp >= filter.StartDate.Value);
+
+            if (filter.EndDate.HasValue)
+                filteredResults = filteredResults.Where(r => r.Timestamp <= filter.EndDate.Value);
+
+            if (!string.IsNullOrEmpty(filter.Status))
+                filteredResults = filteredResults.Where(r => r.Status == filter.Status);
+        }
+
         var groupedByTime = new Dictionary<string, List<TestResult>>();
 
         // Group test cases by date and time (truncated to minutes or hour based on preference)
-        foreach (var result in _cachedResults.OrderByDescending(r => r.Timestamp))
+        foreach (var result in filteredResults.OrderByDescending(r => r.Timestamp))
         {
             // Group by date and hour:minute (e.g., "2025-02-12 15:30")
             var timeKey = result.Timestamp.ToString("yyyy-MM-dd HH:mm");

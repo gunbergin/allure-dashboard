@@ -14,6 +14,7 @@ let currentTestRuns = [];
 let timeGroupedTestCases = [];
 let statusChart = null;
 let breakdownChart = null;
+let currentTimeGroupView = 'card'; // 'card' or 'table'
 
 // Initialize the dashboard
 async function init() {
@@ -23,18 +24,18 @@ async function init() {
         await loadDashboard();
         await loadTestCasesByTime();
 
-        // Set default date values: startDate = 24 hours before today, endDate = today
+        // Set default date values: startDate = 1 month before today, endDate = today
         const today = new Date();
         const yyyy = today.getFullYear();
         const mm = String(today.getMonth() + 1).padStart(2, '0');
         const dd = String(today.getDate()).padStart(2, '0');
         const endDateStr = `${yyyy}-${mm}-${dd}`;
-        // Calculate 24 hours before
-        const yesterday = new Date(today);
-        yesterday.setDate(today.getDate() - 1);
-        const prevYyyy = yesterday.getFullYear();
-        const prevMm = String(yesterday.getMonth() + 1).padStart(2, '0');
-        const prevDd = String(yesterday.getDate()).padStart(2, '0');
+        // Calculate 1 month before
+        const oneMonthAgo = new Date(today);
+        oneMonthAgo.setMonth(today.getMonth() - 1);
+        const prevYyyy = oneMonthAgo.getFullYear();
+        const prevMm = String(oneMonthAgo.getMonth() + 1).padStart(2, '0');
+        const prevDd = String(oneMonthAgo.getDate()).padStart(2, '0');
         const startDateStr = `${prevYyyy}-${prevMm}-${prevDd}`;
         const startDateInput = document.getElementById('startDate');
         const endDateInput = document.getElementById('endDate');
@@ -51,6 +52,31 @@ async function init() {
         document.getElementById('endDate').addEventListener('change', applyFilters);
         document.getElementById('projectFilter').addEventListener('change', applyFilters);
         document.getElementById('statusFilter').addEventListener('change', applyFilters);
+
+        // Event listeners for time group view toggle
+        document.getElementById('timeGroupCardView').addEventListener('click', function() {
+            currentTimeGroupView = 'card';
+            document.getElementById('timeGroupCardView').classList.add('active');
+            document.getElementById('timeGroupTableView').classList.remove('active');
+            renderTimeGroupedTestCases();
+        });
+
+        document.getElementById('timeGroupTableView').addEventListener('click', function() {
+            currentTimeGroupView = 'table';
+            document.getElementById('timeGroupTableView').classList.add('active');
+            document.getElementById('timeGroupCardView').classList.remove('active');
+            renderTimeGroupedTestCases();
+        });
+
+        // Keyboard event listener for closing lightbox with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const lightbox = document.getElementById('imageLightbox');
+                if (lightbox && lightbox.style.display !== 'none') {
+                    closeImageLightbox();
+                }
+            }
+        });
     } catch (error) {
         console.error('Initialization error:', error);
         showError('Failed to initialize dashboard');
@@ -199,6 +225,7 @@ function applyFilters() {
     currentFilters.endDate = document.getElementById('endDate').value;
     
     loadDashboard();
+    loadTestCasesByTime();
 }
 
 function clearFilters() {
@@ -242,7 +269,14 @@ async function loadTestCasesByTime() {
     container.innerHTML = '<p>Loading test cases by time...</p>';
 
     try {
-        const response = await fetch(`${API_BASE_URL}/test-cases-by-time`);
+        const params = new URLSearchParams();
+        if (currentFilters.project) params.append('project', currentFilters.project);
+        if (currentFilters.tags.length > 0) params.append('tags', currentFilters.tags.join(','));
+        if (currentFilters.startDate) params.append('startDate', currentFilters.startDate);
+        if (currentFilters.endDate) params.append('endDate', currentFilters.endDate);
+        if (currentFilters.status) params.append('status', currentFilters.status);
+        
+        const response = await fetch(`${API_BASE_URL}/test-cases-by-time?${params}`);
         if (!response.ok) throw new Error('Failed to load test cases by time');
 
         timeGroupedTestCases = await response.json();
@@ -251,46 +285,107 @@ async function loadTestCasesByTime() {
             return;
         }
 
-        container.innerHTML = timeGroupedTestCases.map((group, index) => {
-            const passRateColor = group.passRate >= 80 ? '#059669' : group.passRate >= 50 ? '#d97706' : '#dc2626';
-            // Extract unique tags from all test cases in this group
-            const uniqueTags = [...new Set(group.testCases.flatMap(test => test.tags || []))].sort();
-            const tagsHtml = uniqueTags.length > 0 ? `<div class="time-group-tags">${uniqueTags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : '';
-            return `
-                <div class="time-group-card" onclick="showTimeGroupDetails(${index})" style="cursor: pointer;">
-                    <div class="time-group-header">
-                        <div>
-                            <h3>${group.timeGroup}</h3>
-                            ${tagsHtml}
-                        </div>
-                        <span class="pass-rate" style="color: ${passRateColor};">${group.passRate.toFixed(1)}%</span>
-                    </div>
-                    <div class="time-group-stats">
-                        <span class="stat-badge passed">${group.passedCount} Passed</span>
-                        <span class="stat-badge failed">${group.failedCount} Failed</span>
-                        <span class="stat-badge skipped">${group.skippedCount} Skipped</span>
-                        <span class="stat-badge broken">${group.brokenCount} Broken</span>
-                    </div>
-                    <div class="test-cases-list">
-                        <strong>Test Cases (${group.testCases.length}):</strong>
-                        <ul>
-                            ${group.testCases.slice(0, 5).map(test => `
-                                <li>
-                                    <span class="status-badge ${test.status.toLowerCase()}">${test.status}</span>
-                                    <span>${escapeHtml(test.name)}</span>
-                                </li>
-                            `).join('')}
-                            ${group.testCases.length > 5 ? `<li style="font-style: italic; color: #9ca3af;">... and ${group.testCases.length - 5} more</li>` : ''}
-                        </ul>
-                    </div>
-                    <div style="margin-top: 12px; text-align: center; color: #667eea; font-size: 12px; font-weight: 600;">Click to view all test cases</div>
-                </div>
-            `;
-        }).join('');
+        renderTimeGroupedTestCases();
     } catch (error) {
         console.error('Error loading test cases by time:', error);
         container.innerHTML = '<p>Failed to load test cases by time.</p>';
     }
+}
+
+function renderTimeGroupedTestCases() {
+    const container = document.getElementById('groupedByTimeContainer');
+    if (!container || !timeGroupedTestCases) return;
+
+    if (currentTimeGroupView === 'table') {
+        renderTimeGroupedTable();
+    } else {
+        renderTimeGroupedCards();
+    }
+}
+
+function renderTimeGroupedCards() {
+    const container = document.getElementById('groupedByTimeContainer');
+    container.innerHTML = timeGroupedTestCases.map((group, index) => {
+        const passRateColor = group.passRate >= 80 ? '#059669' : group.passRate >= 50 ? '#d97706' : '#dc2626';
+        // Extract unique tags from all test cases in this group
+        const uniqueTags = [...new Set(group.testCases.flatMap(test => test.tags || []))].sort();
+        const tagsHtml = uniqueTags.length > 0 ? `<div class="time-group-tags">${uniqueTags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : '';
+        return `
+            <div class="time-group-card" onclick="showTimeGroupDetails(${index})" style="cursor: pointer;">
+                <div class="time-group-header">
+                    <div>
+                        <h3>${group.timeGroup}</h3>
+                        ${tagsHtml}
+                    </div>
+                    <span class="pass-rate" style="color: ${passRateColor};">${group.passRate.toFixed(1)}%</span>
+                </div>
+                <div class="time-group-stats">
+                    <span class="stat-badge passed">${group.passedCount} Passed</span>
+                    <span class="stat-badge failed">${group.failedCount} Failed</span>
+                    <span class="stat-badge skipped">${group.skippedCount} Skipped</span>
+                    <span class="stat-badge broken">${group.brokenCount} Broken</span>
+                </div>
+                <div class="test-cases-list">
+                    <strong>Test Cases (${group.testCases.length}):</strong>
+                    <ul>
+                        ${group.testCases.slice(0, 5).map(test => `
+                            <li>
+                                <span class="status-badge ${test.status.toLowerCase()}">${test.status}</span>
+                                <span>${escapeHtml(test.name)}</span>
+                            </li>
+                        `).join('')}
+                        ${group.testCases.length > 5 ? `<li style="font-style: italic; color: #9ca3af;">... and ${group.testCases.length - 5} more</li>` : ''}
+                    </ul>
+                </div>
+                <div style="margin-top: 12px; text-align: center; color: #667eea; font-size: 12px; font-weight: 600;">Click to view all test cases</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderTimeGroupedTable() {
+    const container = document.getElementById('groupedByTimeContainer');
+    container.innerHTML = `
+        <table class="time-groups-table">
+            <thead>
+                <tr>
+                    <th>Time Group</th>
+                    <th>Pass Rate</th>
+                    <th>Total</th>
+                    <th>Passed</th>
+                    <th>Failed</th>
+                    <th>Skipped</th>
+                    <th>Broken</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${timeGroupedTestCases.map((group, index) => {
+                    const hasFailed = group.failedCount > 0;
+                    const rowClass = hasFailed ? 'failed-row' : '';
+                    const passRateColor = group.passRate >= 80 ? '#059669' : group.passRate >= 50 ? '#d97706' : '#dc2626';
+                    return `
+                        <tr class="${rowClass}">
+                            <td><strong>${escapeHtml(group.timeGroup)}</strong></td>
+                            <td>
+                                <span class="pass-rate" style="color: ${passRateColor};">
+                                    ${group.passRate.toFixed(1)}%
+                                </span>
+                            </td>
+                            <td>${group.testCases.length}</td>
+                            <td><span class="stat-badge passed">${group.passedCount}</span></td>
+                            <td><span class="stat-badge failed">${group.failedCount}</span></td>
+                            <td><span class="stat-badge skipped">${group.skippedCount}</span></td>
+                            <td><span class="stat-badge broken">${group.brokenCount}</span></td>
+                            <td>
+                                <button class="action-btn" onclick="showTimeGroupDetails(${index})" style="font-size: 12px; padding: 4px 8px;">View</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
 }
 
 function showTimeGroupDetails(groupIndex) {
@@ -495,8 +590,8 @@ function renderAttachment(attachment) {
     
     return `
         <div class="attachment-item">
-            <div class="attachment-thumbnail">
-                ${isImage ? `<img src="${escapeHtml(attachmentUrl)}" alt="${escapeHtml(fileName)}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 font-family=%22sans-serif%22 font-size=%2212%22 fill=%22%23999%22%3EImage Failed%3C/text%3E%3C/svg%3E'">` : '<div style="color: #999; text-align: center;">📎</div>'}
+            <div class="attachment-thumbnail" ${isImage ? `onclick="openImageLightbox('${escapeHtml(attachmentUrl)}', '${escapeHtml(fileName)}')"` : ''} ${isImage ? 'style="cursor: pointer;"' : ''}>
+                ${isImage ? `<img src="${escapeHtml(attachmentUrl)}" alt="${escapeHtml(fileName)}" style="cursor: pointer;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 font-family=%22sans-serif%22 font-size=%2212%22 fill=%22%23999%22%3EImage Failed%3C/text%3E%3C/svg%3E'">` : '<div style="color: #999; text-align: center;">📎</div>'}
             </div>
             <div class="attachment-info">
                 <div class="attachment-name">${escapeHtml(fileName)}</div>
@@ -513,6 +608,18 @@ function showModal() {
 
 function closeDetailsModal() {
     document.getElementById('detailsModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+function openImageLightbox(imageUrl, fileName) {
+    document.getElementById('lightboxImage').src = imageUrl;
+    document.getElementById('lightboxFileName').textContent = fileName;
+    document.getElementById('imageLightbox').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeImageLightbox() {
+    document.getElementById('imageLightbox').style.display = 'none';
     document.body.style.overflow = 'auto';
 }
 

@@ -30,6 +30,15 @@
         </div>
     </div>
 </div>
+
+    <!-- Image Lightbox Modal -->
+    <div id="imageLightbox" class="image-lightbox" style="display: none;" onclick="closeImageLightbox()">
+        <div class="lightbox-content" onclick="event.stopPropagation()">
+            <button class="lightbox-close" onclick="closeImageLightbox()">&times;</button>
+            <img id="lightboxImage" src="" alt="Full size image">
+            <p id="lightboxFileName" style="text-align: center; margin-top: 12px; color: #6b7280;"></p>
+        </div>
+    </div>
     <div class="container">
         <!-- Header -->
         <header>
@@ -130,7 +139,13 @@
 
                 <!-- Test Cases Grouped by Time -->
                 <section class="grouped-by-time-section">
-                    <h2>Test Cases by Date & Time</h2>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h2 style="margin: 0;">Test Cases by Date & Time</h2>
+                        <div class="view-toggle">
+                            <button class="toggle-btn active" id="timeGroupCardView" data-view="card">Card View</button>
+                            <button class="toggle-btn" id="timeGroupTableView" data-view="table">Table View</button>
+                        </div>
+                    </div>
                     <div id="groupedByTimeContainer" class="grouped-by-time-container">
                         <p>Loading test cases...</p>
                     </div>

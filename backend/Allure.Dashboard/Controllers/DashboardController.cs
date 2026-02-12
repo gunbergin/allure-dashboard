@@ -111,11 +111,20 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("test-cases-by-time")]
-    public async Task<IActionResult> GetTestCasesGroupedByTime()
+    public async Task<IActionResult> GetTestCasesGroupedByTime([FromQuery] string? project, [FromQuery] string? tags, [FromQuery] string? startDate, [FromQuery] string? endDate, [FromQuery] string? status)
     {
         try
         {
-            var groupedTestCases = await _allureService.GetTestCasesGroupedByTimeAsync();
+            var filter = new FilterRequest
+            {
+                Project = project,
+                Tags = !string.IsNullOrEmpty(tags) ? tags.Split(',').ToList() : null,
+                StartDate = !string.IsNullOrEmpty(startDate) && DateTime.TryParse(startDate, out var start) ? start : null,
+                EndDate = !string.IsNullOrEmpty(endDate) && DateTime.TryParse(endDate, out var end) ? end : null,
+                Status = status
+            };
+
+            var groupedTestCases = await _allureService.GetTestCasesGroupedByTimeAsync(filter);
             return Ok(groupedTestCases);
         }
         catch (Exception ex)
