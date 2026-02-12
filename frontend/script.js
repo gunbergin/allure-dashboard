@@ -194,10 +194,16 @@ async function loadTestCasesByTime() {
 
         container.innerHTML = timeGroupedTestCases.map((group, index) => {
             const passRateColor = group.passRate >= 80 ? '#059669' : group.passRate >= 50 ? '#d97706' : '#dc2626';
+            // Extract unique tags from all test cases in this group
+            const uniqueTags = [...new Set(group.testCases.flatMap(test => test.tags || []))].sort();
+            const tagsHtml = uniqueTags.length > 0 ? `<div class="time-group-tags">${uniqueTags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : '';
             return `
                 <div class="time-group-card" onclick="showTimeGroupDetails(${index})" style="cursor: pointer;">
                     <div class="time-group-header">
-                        <h3>${group.timeGroup}</h3>
+                        <div>
+                            <h3>${group.timeGroup}</h3>
+                            ${tagsHtml}
+                        </div>
                         <span class="pass-rate" style="color: ${passRateColor};">${group.passRate.toFixed(1)}%</span>
                     </div>
                     <div class="time-group-stats">
@@ -425,14 +431,17 @@ function renderAttachment(attachment) {
     const isImage = attachment.type && (attachment.type.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp)$/i.test(attachment.source));
     const fileName = attachment.name || attachment.source?.split('/').pop() || 'Attachment';
     
+    // The attachment.source should already be in the format "data/test-results/filename"
+    const attachmentUrl = `${API_BASE_URL}/attachment/${attachment.source}`;
+    
     return `
         <div class="attachment-item">
             <div class="attachment-thumbnail">
-                ${isImage ? `<img src="${escapeHtml(attachment.source)}" alt="${escapeHtml(fileName)}">` : '<div style="color: #999; text-align: center;">📎</div>'}
+                ${isImage ? `<img src="${escapeHtml(attachmentUrl)}" alt="${escapeHtml(fileName)}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 font-family=%22sans-serif%22 font-size=%2212%22 fill=%22%23999%22%3EImage Failed%3C/text%3E%3C/svg%3E'">` : '<div style="color: #999; text-align: center;">📎</div>'}
             </div>
             <div class="attachment-info">
                 <div class="attachment-name">${escapeHtml(fileName)}</div>
-                <a href="${escapeHtml(attachment.source)}" download class="attachment-link">Download</a>
+                <a href="${escapeHtml(attachmentUrl)}" download class="attachment-link">Download</a>
             </div>
         </div>
     `;

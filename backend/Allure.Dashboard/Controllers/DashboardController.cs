@@ -124,4 +124,81 @@ public class DashboardController : ControllerBase
             return BadRequest(new { error = ex.Message });
         }
     }
-}
+
+    [HttpGet("attachment/{*path}")]
+    public IActionResult GetAttachment(string path)
+    {
+        try
+        {
+            var basePath = Directory.Exists("../../allure-reports") 
+                ? Path.GetFullPath("../../allure-reports") 
+                : Path.GetFullPath("./allure-reports");
+            
+            var fullPath = Path.GetFullPath(Path.Combine(basePath, path));
+            
+            // Prevent directory traversal attacks
+            if (!fullPath.StartsWith(basePath))
+            {
+                return Unauthorized();
+            }
+
+            if (!System.IO.File.Exists(fullPath))
+            {
+                _logger.LogWarning($"Attachment file not found: {fullPath}");
+                return NotFound();
+            }
+
+            var contentType = GetContentType(fullPath);
+            var fileStream = System.IO.File.OpenRead(fullPath);
+            return File(fileStream, contentType, enableRangeProcessing: true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error serving attachment: {ex.Message}");
+            return StatusCode(500, new { error = ex.Message });
+        }
+    }
+
+    private string GetContentType(string filePath)
+    {
+        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+        
+        // If no extension, try to detect by reading the file magic bytes or checking Allure conventions
+        if (string.IsNullOrEmpty(extension))
+        {
+            try
+            {
+                using (var fs = System.IO.File.OpenRead(filePath))
+                {
+                    byte[] buffer = new byte[4];
+                    fs.Read(buffer, 0, 4);
+                    
+                    // Check PNG magic bytes: 89 50 4E 47
+                    if (buffer[0] == 0x89 && buffer[1] == 0x50 && buffer[2] == 0x4E && buffer[3] == 0x47)
+                        return "image/png";
+                    
+                    // Check JPEG magic bytes: FF D8 FF
+                    if (buffer[0] == 0xFF && buffer[1] == 0xD8 && buffer[2] == 0xFF)
+                        return "image/jpeg";
+                    
+                    // Check GIF magic bytes: 47 49 46 38
+                    if (buffer[0] == 0x47 && buffer[1] == 0x49 && buffer[2] == 0x46 && buffer[3] == 0x38)
+                        return "image/gif";
+                }
+            }
+            catch { }
+        }
+        
+        return extension switch
+        {
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".pdf" => "application/pdf",
+            ".mp4" => "video/mp4",
+            ".webm" => "video/webm",
+            ".txt" => "text/plain",
+            _ => "application/octet-stream"
+        };
+    }}

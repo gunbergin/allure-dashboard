@@ -117,12 +117,66 @@ public class AllureService : IAllureService
         _cachedResults = _cachedResults.OrderByDescending(r => r.Timestamp).ToList();
     }
 
+    private bool IsHookTestContent(string? name)
+    {
+        if (string.IsNullOrEmpty(name))
+            return false;
+        
+        return name.Contains("PlaywrightHooks") ||
+               name.Contains("BeforeScenarioAsync") ||
+               name.Contains("AfterScenarioAsync") ||
+               name.Contains("BeforeEachAsync") ||
+               name.Contains("AfterEachAsync") ||
+               name.Contains("Default") && (name.Contains("Before") || name.Contains("After"));
+    }
+
+    private bool IsContainerJsonWithHooks(string content)
+    {
+        try
+        {
+            // Check if this is a container JSON file with children and hooks
+            var json = JObject.Parse(content);
+            
+            // Look for the container pattern: has children array and befores/afters with hooks
+            if (json.ContainsKey("children") && 
+                (json.ContainsKey("befores") || json.ContainsKey("afters")))
+            {
+                var children = json["children"];
+                var befores = json["befores"];
+                var afters = json["afters"];
+                
+                // If it has children and hooks (befores/afters), it's a container file - skip it
+                if (children != null && children.Type == JTokenType.Array && children.Count() > 0)
+                {
+                    if ((befores != null && befores.Type == JTokenType.Array && befores.Count() > 0) ||
+                        (afters != null && afters.Type == JTokenType.Array && afters.Count() > 0))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // If parsing fails, continue with normal processing
+        }
+        
+        return false;
+    }
+
     private List<TestResult> ParseTestResults(string content, string sourceFile)
     {
         var results = new List<TestResult>();
         
         try
         {
+            // Skip container JSON files with children and hooks
+            if (IsContainerJsonWithHooks(content))
+            {
+                _logger.LogInformation($"Skipping container JSON file: {sourceFile}");
+                return results;
+            }
+
             // Try parsing as an array first
             if (content.TrimStart().StartsWith("["))
             {
@@ -131,6 +185,10 @@ public class AllureService : IAllureService
                 {
                     foreach (var report in reports)
                     {
+                        // Skip hook tests at parsing level
+                        if (IsHookTestContent(report.Name))
+                            continue;
+                        
                         var result = ConvertReportToResult(report, sourceFile);
                         if (result != null)
                             results.Add(result);
@@ -142,7 +200,7 @@ public class AllureService : IAllureService
             {
                 // Parse as single object
                 var report = JsonConvert.DeserializeObject<TestReport>(content);
-                if (report != null)
+                if (report != null && !IsHookTestContent(report.Name))
                 {
                     var result = ConvertReportToResult(report, sourceFile);
                     if (result != null)
@@ -163,8 +221,22 @@ public class AllureService : IAllureService
         if (report == null || string.IsNullOrEmpty(report.Uuid))
             return null;
 
+        // Additional filter - skip hook tests (should already be filtered at parsing level)
+        if (IsHookTestContent(report.Name))
+        {
+            return null;
+        }
+
         var timestamp = UnixTimeStampToDateTime(report.Start);
         var duration = report.Stop - report.Start;
+        
+        // Process attachments to include full relative paths
+        var attachments = report.Attachments != null ? report.Attachments.Select(att => new Attachment
+        {
+            Name = att.Name,
+            Type = att.Type,
+            Source = att.Source != null ? $"data/test-results/{att.Source}" : att.Source
+        }).ToList() : null;
 
         return new TestResult
         {
@@ -178,7 +250,7 @@ public class AllureService : IAllureService
             Duration = duration,
             Source = sourceFile,
             Steps = report.Steps,
-            Attachments = report.Attachments
+            Attachments = attachments
         };
     }
 
