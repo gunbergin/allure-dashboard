@@ -9,4 +9,5 @@ public interface IAllureService
     Task<List<string>> GetProjectsAsync();
     Task<List<string>> GetAvailableTagsAsync();
     Task RefreshDataAsync();
+    Task<List<TimeGroupedTestCase>> GetTestCasesGroupedByTimeAsync();
 }

@@ -8,6 +8,28 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <div id="loadingSpinner" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3000;">
+    <div class="spinner"></div>
+    <p>Loading data...</p>
+</div>
+    <div id="detailsModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">Test Details</h3>
+            <button class="modal-close" onclick="closeDetailsModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="test-details">
+                <div class="detail-row"><strong>Status:</strong> <span id="modalStatus"></span></div>
+                <div class="detail-row"><strong>Project:</strong> <span id="modalProject"></span></div>
+                <div class="detail-row"><strong>Duration:</strong> <span id="modalDuration"></span></div>
+                <div class="detail-row"><strong>Timestamp:</strong> <span id="modalTimestamp"></span></div>
+            </div>
+            <h4>Execution Steps</h4>
+            <div id="stepsContainer" class="steps-container"></div>
+        </div>
+    </div>
+</div>
     <div class="container">
         <!-- Header -->
         <header>
@@ -102,112 +124,64 @@
                     </div>
                 </section>
 
-                <!-- Test Runs Table -->
-                <section class="results-section">
-                    <h2>Test Runs</h2>
-                    <div id="loadingSpinner" class="spinner" style="display: none;"></div>
-                    <div id="resultsContainer" class="results-container">
-                        <table id="resultsTable" class="results-table">
-                            <thead>
-                                <tr>
-                                    <th>Run Name</th>
-                                    <th>Start Time</th>
-                                    <th>Total Tests</th>
-                                    <th>Passed</th>
-                                    <th>Failed</th>
-                                    <th>Skipped</th>
-                                    <th>Pass Rate</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="resultsBody">
-                            </tbody>
-                        </table>
-                        <div id="noResults" class="no-results" style="display: none;">
-                            No test runs found
-                        </div>
+                <!-- Test Cases Grouped by Time -->
+                <section class="grouped-by-time-section">
+                    <h2>Test Cases by Date & Time</h2>
+                    <div id="groupedByTimeContainer" class="grouped-by-time-container">
+                        <p>Loading test cases...</p>
                     </div>
-                    
-                    <!-- Test Run Details Modal -->
-                    <div id="testRunModal" class="modal" style="display: none;">
+                </section>
+
+                    <!-- Time Group Details Modal -->
+                    <div id="timeGroupModal" class="modal" style="display: none;">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h3 id="runModalTitle"></h3>
-                                <button class="modal-close" onclick="closeTestRunModal()">&times;</button>
+                                <h3 id="timeGroupModalTitle"></h3>
+                                <button class="modal-close" onclick="closeTimeGroupModal()">&times;</button>
                             </div>
                             <div class="modal-body">
-                                <div class="run-stats">
+                                <div class="time-group-details-stats">
                                     <div class="stat-mini">
                                         <strong>Total Tests:</strong>
-                                        <span id="runTotalTests">0</span>
+                                        <span id="groupTotalTests">0</span>
                                     </div>
                                     <div class="stat-mini">
                                         <strong>Passed:</strong>
-                                        <span id="runPassedCount" class="badge-green">0</span>
+                                        <span id="groupPassedCount" class="badge-green">0</span>
                                     </div>
                                     <div class="stat-mini">
                                         <strong>Failed:</strong>
-                                        <span id="runFailedCount" class="badge-red">0</span>
+                                        <span id="groupFailedCount" class="badge-red">0</span>
                                     </div>
                                     <div class="stat-mini">
                                         <strong>Skipped:</strong>
-                                        <span id="runSkippedCount" class="badge-orange">0</span>
+                                        <span id="groupSkippedCount" class="badge-orange">0</span>
+                                    </div>
+                                    <div class="stat-mini">
+                                        <strong>Broken:</strong>
+                                        <span id="groupBrokenCount" class="badge-purple">0</span>
                                     </div>
                                     <div class="stat-mini">
                                         <strong>Pass Rate:</strong>
-                                        <span id="runPassRate">0%</span>
+                                        <span id="groupPassRate">0%</span>
                                     </div>
                                 </div>
                                 
-                                <h4>Tests in this Run</h4>
-                                <table class="tests-in-run-table">
+                                <h4>Test Cases</h4>
+                                <table class="tests-in-group-table">
                                     <thead>
                                         <tr>
                                             <th>Test Name</th>
                                             <th>Status</th>
                                             <th>Duration (ms)</th>
+                                            <th>Project</th>
                                             <th>Tags</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="testsInRunBody">
+                                    <tbody id="testsInGroupBody">
                                     </tbody>
                                 </table>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Test Details Modal -->
-                    <div id="detailsModal" class="modal" style="display: none;">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h3 id="modalTitle"></h3>
-                                <button class="modal-close" onclick="closeDetailsModal()">&times;</button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="test-details">
-                                    <div class="detail-row">
-                                        <strong>Status:</strong>
-                                        <span id="modalStatus"></span>
-                                    </div>
-                                    <div class="detail-row">
-                                        <strong>Project:</strong>
-                                        <span id="modalProject"></span>
-                                    </div>
-                                    <div class="detail-row">
-                                        <strong>Duration:</strong>
-                                        <span id="modalDuration"></span> ms
-                                    </div>
-                                    <div class="detail-row">
-                                        <strong>Timestamp:</strong>
-                                        <span id="modalTimestamp"></span>
-                                    </div>
-                                </div>
-                                
-                                <h4>Test Steps</h4>
-                                <div id="stepsContainer" class="steps-container">
-                                    <div class="no-steps">No steps recorded</div>
-                                </div>
                             </div>
                         </div>
                     </div>

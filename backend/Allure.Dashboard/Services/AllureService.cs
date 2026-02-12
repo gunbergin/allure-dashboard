@@ -313,4 +313,38 @@ public class AllureService : IAllureService
     {
         return await Task.FromResult(_tags);
     }
+
+    public async Task<List<TimeGroupedTestCase>> GetTestCasesGroupedByTimeAsync()
+    {
+        var groupedByTime = new Dictionary<string, List<TestResult>>();
+
+        // Group test cases by date and time (truncated to minutes or hour based on preference)
+        foreach (var result in _cachedResults.OrderByDescending(r => r.Timestamp))
+        {
+            // Group by date and hour:minute (e.g., "2025-02-12 15:30")
+            var timeKey = result.Timestamp.ToString("yyyy-MM-dd HH:mm");
+            
+            if (!groupedByTime.ContainsKey(timeKey))
+            {
+                groupedByTime[timeKey] = new List<TestResult>();
+            }
+            
+            groupedByTime[timeKey].Add(result);
+        }
+
+        // Convert to TimeGroupedTestCase objects
+        var result_list = groupedByTime.Select(g => new TimeGroupedTestCase
+        {
+            TimeGroup = g.Key,
+            GroupTime = DateTime.ParseExact(g.Key, "yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture),
+            TestCases = g.Value,
+            PassedCount = g.Value.Count(t => t.Status == "PASSED"),
+            FailedCount = g.Value.Count(t => t.Status == "FAILED"),
+            SkippedCount = g.Value.Count(t => t.Status == "SKIPPED"),
+            BrokenCount = g.Value.Count(t => t.Status == "BROKEN"),
+            PassRate = g.Value.Count > 0 ? (double)g.Value.Count(t => t.Status == "PASSED") / g.Value.Count * 100 : 0
+        }).OrderByDescending(x => x.GroupTime).ToList();
+
+        return await Task.FromResult(result_list);
+    }
 }

@@ -161,3 +161,15 @@ public class DashboardData
     public int TotalTests { get; set; }
     public double PassRate { get; set; }
 }
+
+public class TimeGroupedTestCase
+{
+    public string TimeGroup { get; set; } = string.Empty;
+    public DateTime GroupTime { get; set; }
+    public List<TestResult> TestCases { get; set; } = new();
+    public int PassedCount { get; set; }
+    public int FailedCount { get; set; }
+    public int SkippedCount { get; set; }
+    public int BrokenCount { get; set; }
+    public double PassRate { get; set; }
+}

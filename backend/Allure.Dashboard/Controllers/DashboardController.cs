@@ -109,4 +109,19 @@ public class DashboardController : ControllerBase
             return BadRequest(new { error = ex.Message });
         }
     }
+
+    [HttpGet("test-cases-by-time")]
+    public async Task<IActionResult> GetTestCasesGroupedByTime()
+    {
+        try
+        {
+            var groupedTestCases = await _allureService.GetTestCasesGroupedByTimeAsync();
+            return Ok(groupedTestCases);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error getting test cases grouped by time: {ex.Message}");
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 }

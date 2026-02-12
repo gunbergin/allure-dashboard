@@ -11,6 +11,7 @@ let currentFilters = {
 let allTags = [];
 let currentResults = [];
 let currentTestRuns = [];
+let timeGroupedTestCases = [];
 let statusChart = null;
 let breakdownChart = null;
 
@@ -20,6 +21,7 @@ async function init() {
         await loadProjects();
         await loadTags();
         await loadDashboard();
+        await loadTestCasesByTime();
         
         // Event listeners for filters
         document.getElementById('applyFilters').addEventListener('click', applyFilters);
@@ -110,7 +112,6 @@ async function loadDashboard() {
         
         const data = await response.json();
         updateStats(data);
-        renderTestRuns(data.testRuns);
         updateLastRefresh();
     } catch (error) {
         console.error('Error loading dashboard:', error);
@@ -131,201 +132,6 @@ function updateStats(data) {
     updateCharts(data);
 }
 
-function renderTestRuns(testRuns) {
-    const body = document.getElementById('resultsBody');
-    const noResults = document.getElementById('noResults');
-    
-    currentTestRuns = testRuns || [];
-    
-    if (!testRuns || testRuns.length === 0) {
-        body.innerHTML = '';
-        noResults.style.display = 'block';
-        return;
-    }
-    
-    noResults.style.display = 'none';
-    body.innerHTML = testRuns.map((run, index) => {
-        const passRate = run.passRate !== undefined ? run.passRate.toFixed(1) : 0;
-        return `
-            <tr>
-                <td>${escapeHtml(run.name || 'Test Run ' + (index + 1))}</td>
-                <td>${formatDate(run.startTime)}</td>
-                <td>${(run.results?.length || 0)}</td>
-                <td><span class="stat-passed">${run.passedCount || 0}</span></td>
-                <td><span class="stat-failed">${run.failedCount || 0}</span></td>
-                <td><span class="stat-skipped">${run.skippedCount || 0}</span></td>
-                <td>${passRate}%</td>
-                <td>
-                    <button class="action-btn" onclick="showTestRunModal(${index})">View Tests</button>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-function showTestRunModal(runIndex) {
-    const testRun = currentTestRuns[runIndex];
-    if (!testRun) return;
-    
-    // Display test run statistics
-    const runStatsHtml = `
-        <div class="run-stats">
-            <div class="stat-mini">
-                <strong>Total Tests</strong>
-                <span>${testRun.results?.length || 0}</span>
-            </div>
-            <div class="stat-mini">
-                <strong>Passed</strong>
-                <span class="passed">${testRun.passedCount || 0}</span>
-            </div>
-            <div class="stat-mini">
-                <strong>Failed</strong>
-                <span class="failed">${testRun.failedCount || 0}</span>
-            </div>
-            <div class="stat-mini">
-                <strong>Skipped</strong>
-                <span class="skipped">${testRun.skippedCount || 0}</span>
-            </div>
-            <div class="stat-mini">
-                <strong>Pass Rate</strong>
-                <span>${(testRun.passRate || 0).toFixed(1)}%</span>
-            </div>
-        </div>
-    `;
-    
-    // Populate modal header
-    document.getElementById('testRunModal').innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>${escapeHtml(testRun.name || 'Test Run')}</h3>
-                <button class="modal-close" onclick="closeTestRunModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                ${runStatsHtml}
-                <h4>Tests in this Run</h4>
-                <table class="tests-in-run-table">
-                    <thead>
-                        <tr>
-                            <th>Test Name</th>
-                            <th>Status</th>
-                            <th>Duration (ms)</th>
-                            <th>Tags</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="testsInRunBody">
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
-    
-    // Populate tests table
-    const testsBody = document.getElementById('testsInRunBody');
-    if (testRun.results && testRun.results.length > 0) {
-        testsBody.innerHTML = testRun.results.map((test, testIndex) => `
-            <tr>
-                <td>${escapeHtml(test.name)}</td>
-                <td>
-                    <span class="status-badge ${(test.status || 'PASSED').toLowerCase()}">
-                        ${(test.status || 'PASSED').toUpperCase()}
-                    </span>
-                </td>
-                <td>${test.duration || 0}</td>
-                <td>
-                    ${test.tags && test.tags.length > 0 
-                        ? `<div class="tags-list">${test.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>`
-                        : '-'
-                    }
-                </td>
-                <td>
-                    <button class="action-btn" onclick="showTestDetailsFromRun(${runIndex}, ${testIndex})">View Steps</button>
-                </td>
-            </tr>
-        `).join('');
-    } else {
-        testsBody.innerHTML = '<tr><td colspan="5">No tests found in this run</td></tr>';
-    }
-    
-    // Show the modal
-    document.getElementById('testRunModal').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-
-function closeTestRunModal() {
-    document.getElementById('testRunModal').style.display = 'none';
-    document.body.style.overflow = 'auto';
-}
-
-function showTestDetailsFromRun(runIndex, testIndex) {
-    const testRun = currentTestRuns[runIndex];
-    if (!testRun || !testRun.results || !testRun.results[testIndex]) return;
-    
-    const test = testRun.results[testIndex];
-    
-    // Update main details modal
-    document.getElementById('modalTitle').textContent = test.name;
-    document.getElementById('modalStatus').innerHTML = `<span class="status-badge ${(test.status || 'PASSED').toLowerCase()}">${(test.status || 'PASSED').toUpperCase()}</span>`;
-    document.getElementById('modalProject').textContent = test.project || 'N/A';
-    document.getElementById('modalDuration').textContent = (test.duration || 0) + ' ms';
-    document.getElementById('modalTimestamp').textContent = formatDate(test.timestamp);
-    
-    // Render steps
-    renderSteps(test.steps || []);
-    
-    // Render test-level attachments if they exist
-    if (test.attachments && test.attachments.length > 0) {
-        const stepsContainer = document.getElementById('stepsContainer');
-        const attachmentsHtml = `
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
-                <h4 style="color: #1f2937; margin-bottom: 15px; font-size: 16px; font-weight: 600;">Test Attachments</h4>
-                <div class="attachment-list">
-                    ${test.attachments.map(att => renderAttachment(att)).join('')}
-                </div>
-            </div>
-        `;
-        stepsContainer.innerHTML += attachmentsHtml;
-    }
-    
-    // Close test run modal and show details modal
-    closeTestRunModal();
-    showModal();
-}
-
-function renderResults(results) {
-    const body = document.getElementById('resultsBody');
-    const noResults = document.getElementById('noResults');
-    
-    currentResults = results || [];
-    
-    if (!results || results.length === 0) {
-        body.innerHTML = '';
-        noResults.style.display = 'block';
-        return;
-    }
-    
-    noResults.style.display = 'none';
-    body.innerHTML = results.map((result, index) => `
-        <tr onclick="showTestDetails(${index})" style="cursor: pointer;">
-            <td>
-                <button class="expand-btn"></button>
-            </td>
-            <td>
-                <span class="status-badge ${result.status}">${result.status}</span>
-            </td>
-            <td>${escapeHtml(result.name)}</td>
-            <td>${escapeHtml(result.project)}</td>
-            <td>
-                ${result.tags && result.tags.length > 0 
-                    ? `<div class="tags-list">${result.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>`
-                    : '-'
-                }
-            </td>
-            <td>${result.duration || 0}</td>
-            <td>${formatDate(result.timestamp)}</td>
-        </tr>
-    `).join('');
-}
 
 function applyFilters() {
     currentFilters.project = document.getElementById('projectFilter').value;
@@ -362,11 +168,148 @@ async function refreshData() {
     try {
         await fetch(`${API_BASE_URL}/refresh`, { method: 'POST' });
         await loadDashboard();
+        await loadTestCasesByTime();
         showSuccess('Data refreshed successfully');
     } catch (error) {
         console.error('Error refreshing data:', error);
         showError('Failed to refresh data');
     }
+}
+
+async function loadTestCasesByTime() {
+    const container = document.getElementById('groupedByTimeContainer');
+    if (!container) return;
+    
+    container.innerHTML = '<p>Loading test cases by time...</p>';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/test-cases-by-time`);
+        if (!response.ok) throw new Error('Failed to load test cases by time');
+
+        timeGroupedTestCases = await response.json();
+        if (!timeGroupedTestCases || timeGroupedTestCases.length === 0) {
+            container.innerHTML = '<p>No test cases found.</p>';
+            return;
+        }
+
+        container.innerHTML = timeGroupedTestCases.map((group, index) => {
+            const passRateColor = group.passRate >= 80 ? '#059669' : group.passRate >= 50 ? '#d97706' : '#dc2626';
+            return `
+                <div class="time-group-card" onclick="showTimeGroupDetails(${index})" style="cursor: pointer;">
+                    <div class="time-group-header">
+                        <h3>${group.timeGroup}</h3>
+                        <span class="pass-rate" style="color: ${passRateColor};">${group.passRate.toFixed(1)}%</span>
+                    </div>
+                    <div class="time-group-stats">
+                        <span class="stat-badge passed">${group.passedCount} Passed</span>
+                        <span class="stat-badge failed">${group.failedCount} Failed</span>
+                        <span class="stat-badge skipped">${group.skippedCount} Skipped</span>
+                        <span class="stat-badge broken">${group.brokenCount} Broken</span>
+                    </div>
+                    <div class="test-cases-list">
+                        <strong>Test Cases (${group.testCases.length}):</strong>
+                        <ul>
+                            ${group.testCases.slice(0, 5).map(test => `
+                                <li>
+                                    <span class="status-badge ${test.status.toLowerCase()}">${test.status}</span>
+                                    <span>${escapeHtml(test.name)}</span>
+                                </li>
+                            `).join('')}
+                            ${group.testCases.length > 5 ? `<li style="font-style: italic; color: #9ca3af;">... and ${group.testCases.length - 5} more</li>` : ''}
+                        </ul>
+                    </div>
+                    <div style="margin-top: 12px; text-align: center; color: #667eea; font-size: 12px; font-weight: 600;">Click to view all test cases</div>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Error loading test cases by time:', error);
+        container.innerHTML = '<p>Failed to load test cases by time.</p>';
+    }
+}
+
+function showTimeGroupDetails(groupIndex) {
+    const group = timeGroupedTestCases[groupIndex];
+    if (!group) return;
+
+    // Update modal header
+    document.getElementById('timeGroupModalTitle').textContent = `Test Cases - ${group.timeGroup}`;
+    
+    // Update statistics
+    document.getElementById('groupTotalTests').textContent = group.testCases.length;
+    document.getElementById('groupPassedCount').textContent = group.passedCount;
+    document.getElementById('groupFailedCount').textContent = group.failedCount;
+    document.getElementById('groupSkippedCount').textContent = group.skippedCount;
+    document.getElementById('groupBrokenCount').textContent = group.brokenCount;
+    document.getElementById('groupPassRate').textContent = group.passRate.toFixed(1) + '%';
+
+    // Populate test cases table
+    const testsBody = document.getElementById('testsInGroupBody');
+    testsBody.innerHTML = group.testCases.map((test, testIndex) => `
+        <tr>
+            <td>${escapeHtml(test.name)}</td>
+            <td>
+                <span class="status-badge ${test.status.toLowerCase()}">
+                    ${test.status}
+                </span>
+            </td>
+            <td>${test.duration || 0}</td>
+            <td>${escapeHtml(test.project || '-')}</td>
+            <td>
+                ${test.tags && test.tags.length > 0
+                    ? `<div class="tags-list">${test.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>`
+                    : '-'
+                }
+            </td>
+            <td>
+                <button class="action-btn" onclick="showTimeGroupTestDetails(${groupIndex}, ${testIndex})" style="font-size: 12px; padding: 4px 8px;">View</button>
+            </td>
+        </tr>
+    `).join('');
+
+    // Show the modal
+    document.getElementById('timeGroupModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeTimeGroupModal() {
+    document.getElementById('timeGroupModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+function showTimeGroupTestDetails(groupIndex, testIndex) {
+    const group = timeGroupedTestCases[groupIndex];
+    if (!group || !group.testCases || !group.testCases[testIndex]) return;
+
+    const test = group.testCases[testIndex];
+
+    // Update details modal
+    document.getElementById('modalTitle').textContent = test.name;
+    document.getElementById('modalStatus').innerHTML = `<span class="status-badge ${test.status.toLowerCase()}">${test.status}</span>`;
+    document.getElementById('modalProject').textContent = test.project || 'N/A';
+    document.getElementById('modalDuration').textContent = (test.duration || 0) + ' ms';
+    document.getElementById('modalTimestamp').textContent = formatDate(test.timestamp);
+
+    // Render steps
+    renderSteps(test.steps || []);
+
+    // Render test-level attachments if they exist
+    if (test.attachments && test.attachments.length > 0) {
+        const stepsContainer = document.getElementById('stepsContainer');
+        const attachmentsHtml = `
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
+                <h4 style="color: #1f2937; margin-bottom: 15px; font-size: 16px; font-weight: 600;">Test Attachments</h4>
+                <div class="attachment-list">
+                    ${test.attachments.map(att => renderAttachment(att)).join('')}
+                </div>
+            </div>
+        `;
+        stepsContainer.innerHTML += attachmentsHtml;
+    }
+
+    // Close time group modal and show details modal
+    closeTimeGroupModal();
+    showModal();
 }
 
 function updateLastRefresh() {
@@ -641,12 +584,14 @@ document.addEventListener('DOMContentLoaded', function() {
             closeDetailsModal();
         }
     });
-    
-    document.getElementById('testRunModal').addEventListener('click', function(e) {
+
+    document.getElementById('timeGroupModal').addEventListener('click', function(e) {
         if (e.target === this) {
-            closeTestRunModal();
+            closeTimeGroupModal();
         }
     });
     
     init();
 });
+
+

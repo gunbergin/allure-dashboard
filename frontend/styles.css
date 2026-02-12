@@ -1001,3 +1001,253 @@ header h1 {
         font-size: 12px;
     }
 }
+
+/* Grouped by Time Section Styles */
+.grouped-by-time-section {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.08);
+    margin-top: 30px;
+    border: 1px solid #e0e0e8;
+}
+
+.grouped-by-time-section h2 {
+    color: #1f2937;
+    margin-bottom: 20px;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.grouped-by-time-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 15px;
+}
+
+.time-group-card {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 15px;
+    transition: all 0.3s ease;
+}
+
+.time-group-card:hover {
+    background: #ffffff;
+    border-color: #d1d5db;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.time-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 10px;
+}
+
+.time-group-header h3 {
+    color: #667eea;
+    font-size: 16px;
+    margin: 0;
+    font-weight: 600;
+}
+
+.time-group-header .pass-rate {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.time-group-stats {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.time-group-stats .stat-badge {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+}
+
+.time-group-stats .stat-badge.passed {
+    background: #10b981;
+}
+
+.time-group-stats .stat-badge.failed {
+    background: #ef4444;
+}
+
+.time-group-stats .stat-badge.skipped {
+    background: #f59e0b;
+}
+
+.time-group-stats .stat-badge.broken {
+    background: #8b5cf6;
+}
+
+.test-cases-list {
+    font-size: 13px;
+    color: #4b5563;
+}
+
+.test-cases-list strong {
+    display: block;
+    margin-bottom: 8px;
+    color: #1f2937;
+}
+
+.test-cases-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.test-cases-list li {
+    padding: 6px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.test-cases-list li:last-child {
+    border-bottom: none;
+}
+
+.test-cases-list .status-badge {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 60px;
+    text-align: center;
+    color: white;
+}
+
+.test-cases-list .status-badge.passed {
+    background: #059669;
+}
+
+.test-cases-list .status-badge.failed {
+    background: #dc2626;
+}
+
+.test-cases-list .status-badge.skipped {
+    background: #d97706;
+}
+
+.test-cases-list .status-badge.broken {
+    background: #7c3aed;
+}
+/* Time Group Details Modal Styles */
+.time-group-details-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f3f4f6;
+    border-radius: 8px;
+}
+
+.time-group-details-stats .stat-mini {
+    text-align: center;
+    padding: 10px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+}
+
+.time-group-details-stats .stat-mini strong {
+    display: block;
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 5px;
+}
+
+.time-group-details-stats .stat-mini span {
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.badge-green {
+    color: #059669 !important;
+}
+
+.badge-red {
+    color: #dc2626 !important;
+}
+
+.badge-orange {
+    color: #d97706 !important;
+}
+
+.badge-purple {
+    color: #7c3aed !important;
+}
+
+/* Tests in Group Table */
+.tests-in-group-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.tests-in-group-table thead {
+    background: #f3f4f6;
+}
+
+.tests-in-group-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    color: #374151;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.tests-in-group-table td {
+    padding: 12px;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 13px;
+    color: #4b5563;
+}
+
+.tests-in-group-table tr:hover {
+    background: #f9fafb;
+}
+
+.tests-in-group-table .status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: white;
+}
+
+.tests-in-group-table .status-badge.passed {
+    background: #059669;
+}
+
+.tests-in-group-table .status-badge.failed {
+    background: #dc2626;
+}
+
+.tests-in-group-table .status-badge.skipped {
+    background: #d97706;
+}
+
+.tests-in-group-table .status-badge.broken {
+    background: #7c3aed;
+}
