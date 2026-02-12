@@ -6,6 +6,7 @@
     <title>Allure Test Dashboard</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
     <div id="loadingSpinner" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3000;">
@@ -44,6 +45,7 @@
         <header>
             <h1>Allure Test Dashboard</h1>
             <div class="header-actions">
+                <button id="exportBtn" title="Export to Excel">📊 Export Report</button>
                 <button id="refreshBtn">Refresh</button>
                 <div class="last-update" id="lastUpdate">Last updated: --:--:--</div>
             </div>

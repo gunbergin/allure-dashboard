@@ -46,6 +46,7 @@ async function init() {
         document.getElementById('applyFilters').addEventListener('click', applyFilters);
         document.getElementById('clearFilters').addEventListener('click', clearFilters);
         document.getElementById('refreshBtn').addEventListener('click', refreshData);
+        document.getElementById('exportBtn').addEventListener('click', generateExcelReport);
 
         // Apply filters on date changes
         document.getElementById('startDate').addEventListener('change', applyFilters);
@@ -750,6 +751,299 @@ function updateBreakdownChart(statusCounts) {
             }
         }
     });
+}
+
+// Export to Excel functionality
+async function generateExcelReport() {
+    try {
+        showLoading(true);
+        
+        // Fetch current filtered data
+        const params = new URLSearchParams();
+        if (currentFilters.project) params.append('project', currentFilters.project);
+        if (currentFilters.tags.length > 0) params.append('tags', currentFilters.tags.join(','));
+        if (currentFilters.startDate) params.append('startDate', currentFilters.startDate);
+        if (currentFilters.endDate) params.append('endDate', currentFilters.endDate);
+        if (currentFilters.status) params.append('status', currentFilters.status);
+        
+        const response = await fetch(`${API_BASE_URL}/results?${params}`);
+        if (!response.ok) throw new Error('Failed to fetch results');
+        
+        const results = await response.json();
+        
+        // Create workbook
+        const wb = XLSX.utils.book_new();
+        wb.props = {
+            title: 'Allure Test Report',
+            author: 'Allure Dashboard',
+            created: new Date()
+        };
+        
+        // Sheet 1: Summary
+        const summaryData = createSummarySummary(results);
+        const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+        applyHeaderStyle(summarySheet, ['Metric', 'Value']);
+        setSummaryColumnWidths(summarySheet);
+        XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
+        
+        // Sheet 2: By Date/Time
+        const byTime = createByTimeData(results);
+        const timeSheet = XLSX.utils.json_to_sheet(byTime);
+        applyHeaderStyle(timeSheet, ['Date & Time', 'Total', 'Passed', 'Failed', 'Skipped', 'Broken', 'Pass Rate (%)']);
+        applyDataStyle(timeSheet, byTime.length);
+        setColumnWidths(timeSheet, [25, 10, 10, 10, 10, 10, 15]);
+        XLSX.utils.book_append_sheet(wb, timeSheet, 'By Date & Time');
+        
+        // Sheet 3: By Project
+        const byProject = createByProjectData(results);
+        const projectSheet = XLSX.utils.json_to_sheet(byProject);
+        applyHeaderStyle(projectSheet, ['Project', 'Total', 'Passed', 'Failed', 'Skipped', 'Broken', 'Pass Rate (%)']);
+        applyDataStyle(projectSheet, byProject.length);
+        setColumnWidths(projectSheet, [20, 10, 10, 10, 10, 10, 15]);
+        XLSX.utils.book_append_sheet(wb, projectSheet, 'By Project');
+        
+        // Sheet 4: By Status
+        const byStatus = createByStatusData(results);
+        const statusSheet = XLSX.utils.json_to_sheet(byStatus);
+        applyHeaderStyle(statusSheet, ['Status', 'Count', 'Total Duration (ms)', 'Average Duration (ms)', 'Percentage (%)']);
+        applyDataStyle(statusSheet, byStatus.length);
+        setColumnWidths(statusSheet, [15, 12, 20, 22, 18]);
+        XLSX.utils.book_append_sheet(wb, statusSheet, 'By Status');
+        
+        // Sheet 5: All Results Details
+        const details = createDetailsData(results);
+        const detailsSheet = XLSX.utils.json_to_sheet(details);
+        applyHeaderStyle(detailsSheet, ['Test Name', 'Status', 'Project', 'Duration (ms)', 'Timestamp', 'Tags']);
+        applyStatusColorCondition(detailsSheet, details.length);
+        setColumnWidths(detailsSheet, [35, 12, 15, 15, 20, 25]);
+        XLSX.utils.book_append_sheet(wb, detailsSheet, 'All Results');
+        
+        // Generate filename with timestamp
+        const now = new Date();
+        const filename = `AllureReport_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
+        
+        // Download
+        XLSX.writeFile(wb, filename);
+        showSuccess('Report exported successfully');
+    } catch (error) {
+        console.error('Error generating report:', error);
+        showError('Failed to generate report');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Apply header styling to worksheet
+function applyHeaderStyle(sheet, headers) {
+    const headerStyle = {
+        fill: { fgColor: { rgb: 'FF667EEA' } },
+        font: { bold: true, color: { rgb: 'FFFFFFFF' }, size: 12 },
+        alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+        border: {
+            top: { style: 'thin', color: { rgb: 'FF000000' } },
+            bottom: { style: 'thin', color: { rgb: 'FF000000' } },
+            left: { style: 'thin', color: { rgb: 'FF000000' } },
+            right: { style: 'thin', color: { rgb: 'FF000000' } }
+        }
+    };
+    
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellAddress = XLSX.utils.encode_col(C) + '1';
+        if (!sheet[cellAddress]) continue;
+        sheet[cellAddress].s = headerStyle;
+    }
+}
+
+// Apply data row styling
+function applyDataStyle(sheet, rowCount) {
+    const dataStyle = {
+        alignment: { horizontal: 'center', vertical: 'center', wrapText: false },
+        border: {
+            top: { style: 'thin', color: { rgb: 'FFE5E7EB' } },
+            bottom: { style: 'thin', color: { rgb: 'FFE5E7EB' } },
+            left: { style: 'thin', color: { rgb: 'FFE5E7EB' } },
+            right: { style: 'thin', color: { rgb: 'FFE5E7EB' } }
+        }
+    };
+    
+    const alternateRowStyle = {
+        fill: { fgColor: { rgb: 'FFF9FAFB' } },
+        ...dataStyle
+    };
+    
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+    for (let R = 2; R <= rowCount + 1; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellAddress = XLSX.utils.encode_cell({ r: R - 1, c: C });
+            if (!sheet[cellAddress]) continue;
+            sheet[cellAddress].s = R % 2 === 0 ? alternateRowStyle : dataStyle;
+        }
+    }
+}
+
+// Apply status-based coloring for status column
+function applyStatusColorCondition(sheet, rowCount) {
+    const statusColors = {
+        PASSED: 'FF059669',
+        FAILED: 'FFDC2626',
+        SKIPPED: 'FFD97706',
+        BROKEN: 'FF7C3AED'
+    };
+    
+    const dataStyle = {
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+            top: { style: 'thin', color: { rgb: 'FFE5E7EB' } },
+            bottom: { style: 'thin', color: { rgb: 'FFE5E7EB' } },
+            left: { style: 'thin', color: { rgb: 'FFE5E7EB' } },
+            right: { style: 'thin', color: { rgb: 'FFE5E7EB' } }
+        }
+    };
+    
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+    for (let R = 2; R <= rowCount + 1; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellAddress = XLSX.utils.encode_cell({ r: R - 1, c: C });
+            if (!sheet[cellAddress]) continue;
+            
+            // Status column is column B (index 1)
+            if (C === 1) {
+                const status = sheet[cellAddress].v;
+                const bgColor = statusColors[status] || 'FFF3F4F6';
+                sheet[cellAddress].s = {
+                    fill: { fgColor: { rgb: bgColor } },
+                    font: { bold: true, color: { rgb: 'FFFFFFFF' }, size: 11 },
+                    alignment: { horizontal: 'center', vertical: 'center' },
+                    border: dataStyle.border
+                };
+            } else {
+                const alternateStyle = R % 2 === 0 ? { fill: { fgColor: { rgb: 'FFF9FAFB' } } } : {};
+                sheet[cellAddress].s = { ...dataStyle, ...alternateStyle };
+            }
+        }
+    }
+}
+
+// Set column widths
+function setColumnWidths(sheet, widths) {
+    sheet['!cols'] = widths.map(w => ({ wch: w }));
+}
+
+// Set summary specific column widths
+function setSummaryColumnWidths(sheet) {
+    sheet['!cols'] = [{ wch: 25 }, { wch: 20 }];
+}
+
+function createSummarySummary(results) {
+    const total = results.length;
+    const passed = results.filter(r => r.status === 'PASSED').length;
+    const failed = results.filter(r => r.status === 'FAILED').length;
+    const skipped = results.filter(r => r.status === 'SKIPPED').length;
+    const broken = results.filter(r => r.status === 'BROKEN').length;
+    const passRate = total > 0 ? ((passed / total) * 100).toFixed(2) : 0;
+    const totalDuration = results.reduce((sum, r) => sum + (r.duration || 0), 0);
+    const avgDuration = total > 0 ? (totalDuration / total).toFixed(2) : 0;
+    
+    return [
+        { Metric: '📊 Total Tests', Value: total },
+        { Metric: '✅ Passed', Value: passed },
+        { Metric: '❌ Failed', Value: failed },
+        { Metric: '⏭️  Skipped', Value: skipped },
+        { Metric: '🔧 Broken', Value: broken },
+        { Metric: '📈 Pass Rate (%)', Value: passRate },
+        { Metric: '⏱️  Total Duration (ms)', Value: totalDuration },
+        { Metric: '⏱️  Avg Duration (ms)', Value: avgDuration },
+        { Metric: '📅 Report Generated', Value: new Date().toLocaleString('tr-TR') }
+    ];
+}
+
+function createByTimeData(results) {
+    const grouped = {};
+    
+    results.forEach(result => {
+        const date = new Date(result.timestamp);
+        const timeKey = date.toLocaleDateString('tr-TR') + ' ' + String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+        
+        if (!grouped[timeKey]) {
+            grouped[timeKey] = { passed: 0, failed: 0, skipped: 0, broken: 0, total: 0, duration: 0 };
+        }
+        grouped[timeKey][result.status.toLowerCase()]++;
+        grouped[timeKey].total++;
+        grouped[timeKey].duration += result.duration || 0;
+    });
+    
+    return Object.entries(grouped).map(([timeGroup, stats]) => ({
+        'Date & Time': timeGroup,
+        'Total': stats.total,
+        'Passed': stats.passed,
+        'Failed': stats.failed,
+        'Skipped': stats.skipped,
+        'Broken': stats.broken,
+        'Pass Rate (%)': parseFloat(((stats.passed / stats.total) * 100).toFixed(2))
+    })).sort((a, b) => new Date(b['Date & Time']) - new Date(a['Date & Time']));
+}
+
+function createByProjectData(results) {
+    const grouped = {};
+    
+    results.forEach(result => {
+        const project = result.project || 'Unknown';
+        
+        if (!grouped[project]) {
+            grouped[project] = { passed: 0, failed: 0, skipped: 0, broken: 0, total: 0 };
+        }
+        grouped[project][result.status.toLowerCase()]++;
+        grouped[project].total++;
+    });
+    
+    return Object.entries(grouped).map(([project, stats]) => ({
+        'Project': project,
+        'Total': stats.total,
+        'Passed': stats.passed,
+        'Failed': stats.failed,
+        'Skipped': stats.skipped,
+        'Broken': stats.broken,
+        'Pass Rate (%)': parseFloat(((stats.passed / stats.total) * 100).toFixed(2))
+    })).sort((a, b) => b.Total - a.Total);
+}
+
+function createByStatusData(results) {
+    const grouped = {};
+    
+    results.forEach(result => {
+        const status = result.status;
+        
+        if (!grouped[status]) {
+            grouped[status] = { count: 0, duration: 0 };
+        }
+        grouped[status].count++;
+        grouped[status].duration += result.duration || 0;
+    });
+    
+    const statusOrder = ['PASSED', 'FAILED', 'BROKEN', 'SKIPPED'];
+    return Object.entries(grouped)
+        .sort((a, b) => statusOrder.indexOf(a[0]) - statusOrder.indexOf(b[0]))
+        .map(([status, stats]) => ({
+            'Status': status,
+            'Count': stats.count,
+            'Total Duration (ms)': stats.duration,
+            'Average Duration (ms)': parseFloat((stats.duration / stats.count).toFixed(2)),
+            'Percentage (%)': parseFloat(((stats.count / results.length) * 100).toFixed(2))
+        }));
+}
+
+function createDetailsData(results) {
+    return results
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .map(result => ({
+            'Test Name': result.name,
+            'Status': result.status,
+            'Project': result.project || '-',
+            'Duration (ms)': result.duration || 0,
+            'Timestamp': formatDate(result.timestamp),
+            'Tags': result.tags ? result.tags.join(', ') : '-'
+        }));
 }
 
 // Close modal on background click and initialize on page load
