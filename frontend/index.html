@@ -9,6 +9,15 @@
 </head>
 <body>
     <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>Allure Test Dashboard</h1>
+            <div class="header-actions">
+                <button id="refreshBtn">Refresh</button>
+                <div class="last-update" id="lastUpdate">Last updated: --:--:--</div>
+            </div>
+        </header>
+
         <div class="main-content">
             <!-- Sidebar with Filters -->
             <aside class="sidebar">
@@ -93,28 +102,78 @@
                     </div>
                 </section>
 
-                <!-- Results Table -->
+                <!-- Test Runs Table -->
                 <section class="results-section">
-                    <h2>Test Results</h2>
+                    <h2>Test Runs</h2>
                     <div id="loadingSpinner" class="spinner" style="display: none;"></div>
                     <div id="resultsContainer" class="results-container">
                         <table id="resultsTable" class="results-table">
                             <thead>
                                 <tr>
-                                    <th></th>
-                                    <th>Status</th>
-                                    <th>Test Name</th>
-                                    <th>Project</th>
-                                    <th>Tags</th>
-                                    <th>Duration (ms)</th>
-                                    <th>Date/Time</th>
+                                    <th>Run Name</th>
+                                    <th>Start Time</th>
+                                    <th>Total Tests</th>
+                                    <th>Passed</th>
+                                    <th>Failed</th>
+                                    <th>Skipped</th>
+                                    <th>Pass Rate</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody id="resultsBody">
                             </tbody>
                         </table>
                         <div id="noResults" class="no-results" style="display: none;">
-                            No test results found
+                            No test runs found
+                        </div>
+                    </div>
+                    
+                    <!-- Test Run Details Modal -->
+                    <div id="testRunModal" class="modal" style="display: none;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h3 id="runModalTitle"></h3>
+                                <button class="modal-close" onclick="closeTestRunModal()">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="run-stats">
+                                    <div class="stat-mini">
+                                        <strong>Total Tests:</strong>
+                                        <span id="runTotalTests">0</span>
+                                    </div>
+                                    <div class="stat-mini">
+                                        <strong>Passed:</strong>
+                                        <span id="runPassedCount" class="badge-green">0</span>
+                                    </div>
+                                    <div class="stat-mini">
+                                        <strong>Failed:</strong>
+                                        <span id="runFailedCount" class="badge-red">0</span>
+                                    </div>
+                                    <div class="stat-mini">
+                                        <strong>Skipped:</strong>
+                                        <span id="runSkippedCount" class="badge-orange">0</span>
+                                    </div>
+                                    <div class="stat-mini">
+                                        <strong>Pass Rate:</strong>
+                                        <span id="runPassRate">0%</span>
+                                    </div>
+                                </div>
+                                
+                                <h4>Tests in this Run</h4>
+                                <table class="tests-in-run-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Test Name</th>
+                                            <th>Status</th>
+                                            <th>Duration (ms)</th>
+                                            <th>Tags</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="testsInRunBody">
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                     

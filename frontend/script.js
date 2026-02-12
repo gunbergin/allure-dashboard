@@ -10,6 +10,7 @@ let currentFilters = {
 
 let allTags = [];
 let currentResults = [];
+let currentTestRuns = [];
 let statusChart = null;
 let breakdownChart = null;
 
@@ -109,7 +110,7 @@ async function loadDashboard() {
         
         const data = await response.json();
         updateStats(data);
-        renderResults(data.results);
+        renderTestRuns(data.testRuns);
         updateLastRefresh();
     } catch (error) {
         console.error('Error loading dashboard:', error);
@@ -128,6 +129,167 @@ function updateStats(data) {
     
     // Update charts
     updateCharts(data);
+}
+
+function renderTestRuns(testRuns) {
+    const body = document.getElementById('resultsBody');
+    const noResults = document.getElementById('noResults');
+    
+    currentTestRuns = testRuns || [];
+    
+    if (!testRuns || testRuns.length === 0) {
+        body.innerHTML = '';
+        noResults.style.display = 'block';
+        return;
+    }
+    
+    noResults.style.display = 'none';
+    body.innerHTML = testRuns.map((run, index) => {
+        const passRate = run.passRate !== undefined ? run.passRate.toFixed(1) : 0;
+        return `
+            <tr>
+                <td>${escapeHtml(run.name || 'Test Run ' + (index + 1))}</td>
+                <td>${formatDate(run.startTime)}</td>
+                <td>${(run.results?.length || 0)}</td>
+                <td><span class="stat-passed">${run.passedCount || 0}</span></td>
+                <td><span class="stat-failed">${run.failedCount || 0}</span></td>
+                <td><span class="stat-skipped">${run.skippedCount || 0}</span></td>
+                <td>${passRate}%</td>
+                <td>
+                    <button class="action-btn" onclick="showTestRunModal(${index})">View Tests</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function showTestRunModal(runIndex) {
+    const testRun = currentTestRuns[runIndex];
+    if (!testRun) return;
+    
+    // Display test run statistics
+    const runStatsHtml = `
+        <div class="run-stats">
+            <div class="stat-mini">
+                <strong>Total Tests</strong>
+                <span>${testRun.results?.length || 0}</span>
+            </div>
+            <div class="stat-mini">
+                <strong>Passed</strong>
+                <span class="passed">${testRun.passedCount || 0}</span>
+            </div>
+            <div class="stat-mini">
+                <strong>Failed</strong>
+                <span class="failed">${testRun.failedCount || 0}</span>
+            </div>
+            <div class="stat-mini">
+                <strong>Skipped</strong>
+                <span class="skipped">${testRun.skippedCount || 0}</span>
+            </div>
+            <div class="stat-mini">
+                <strong>Pass Rate</strong>
+                <span>${(testRun.passRate || 0).toFixed(1)}%</span>
+            </div>
+        </div>
+    `;
+    
+    // Populate modal header
+    document.getElementById('testRunModal').innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>${escapeHtml(testRun.name || 'Test Run')}</h3>
+                <button class="modal-close" onclick="closeTestRunModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                ${runStatsHtml}
+                <h4>Tests in this Run</h4>
+                <table class="tests-in-run-table">
+                    <thead>
+                        <tr>
+                            <th>Test Name</th>
+                            <th>Status</th>
+                            <th>Duration (ms)</th>
+                            <th>Tags</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="testsInRunBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    
+    // Populate tests table
+    const testsBody = document.getElementById('testsInRunBody');
+    if (testRun.results && testRun.results.length > 0) {
+        testsBody.innerHTML = testRun.results.map((test, testIndex) => `
+            <tr>
+                <td>${escapeHtml(test.name)}</td>
+                <td>
+                    <span class="status-badge ${(test.status || 'PASSED').toLowerCase()}">
+                        ${(test.status || 'PASSED').toUpperCase()}
+                    </span>
+                </td>
+                <td>${test.duration || 0}</td>
+                <td>
+                    ${test.tags && test.tags.length > 0 
+                        ? `<div class="tags-list">${test.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>`
+                        : '-'
+                    }
+                </td>
+                <td>
+                    <button class="action-btn" onclick="showTestDetailsFromRun(${runIndex}, ${testIndex})">View Steps</button>
+                </td>
+            </tr>
+        `).join('');
+    } else {
+        testsBody.innerHTML = '<tr><td colspan="5">No tests found in this run</td></tr>';
+    }
+    
+    // Show the modal
+    document.getElementById('testRunModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeTestRunModal() {
+    document.getElementById('testRunModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+function showTestDetailsFromRun(runIndex, testIndex) {
+    const testRun = currentTestRuns[runIndex];
+    if (!testRun || !testRun.results || !testRun.results[testIndex]) return;
+    
+    const test = testRun.results[testIndex];
+    
+    // Update main details modal
+    document.getElementById('modalTitle').textContent = test.name;
+    document.getElementById('modalStatus').innerHTML = `<span class="status-badge ${(test.status || 'PASSED').toLowerCase()}">${(test.status || 'PASSED').toUpperCase()}</span>`;
+    document.getElementById('modalProject').textContent = test.project || 'N/A';
+    document.getElementById('modalDuration').textContent = (test.duration || 0) + ' ms';
+    document.getElementById('modalTimestamp').textContent = formatDate(test.timestamp);
+    
+    // Render steps
+    renderSteps(test.steps || []);
+    
+    // Render test-level attachments if they exist
+    if (test.attachments && test.attachments.length > 0) {
+        const stepsContainer = document.getElementById('stepsContainer');
+        const attachmentsHtml = `
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
+                <h4 style="color: #1f2937; margin-bottom: 15px; font-size: 16px; font-weight: 600;">Test Attachments</h4>
+                <div class="attachment-list">
+                    ${test.attachments.map(att => renderAttachment(att)).join('')}
+                </div>
+            </div>
+        `;
+        stepsContainer.innerHTML += attachmentsHtml;
+    }
+    
+    // Close test run modal and show details modal
+    closeTestRunModal();
+    showModal();
 }
 
 function renderResults(results) {
@@ -304,8 +466,33 @@ function renderSteps(steps) {
                 </span>
                 ${step.stop && step.start ? `<span class="step-duration">${step.stop - step.start}ms</span>` : ''}
             </div>
+            ${step.attachments && step.attachments.length > 0 ? `
+                <div class="attachments-section">
+                    <h5 style="margin: 10px 0 8px 0; font-size: 12px; color: #666;">Attachments</h5>
+                    <div class="attachment-list">
+                        ${step.attachments.map(att => renderAttachment(att)).join('')}
+                    </div>
+                </div>
+            ` : ''}
         </div>
     `).join('');
+}
+
+function renderAttachment(attachment) {
+    const isImage = attachment.type && (attachment.type.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp)$/i.test(attachment.source));
+    const fileName = attachment.name || attachment.source?.split('/').pop() || 'Attachment';
+    
+    return `
+        <div class="attachment-item">
+            <div class="attachment-thumbnail">
+                ${isImage ? `<img src="${escapeHtml(attachment.source)}" alt="${escapeHtml(fileName)}">` : '<div style="color: #999; text-align: center;">📎</div>'}
+            </div>
+            <div class="attachment-info">
+                <div class="attachment-name">${escapeHtml(fileName)}</div>
+                <a href="${escapeHtml(attachment.source)}" download class="attachment-link">Download</a>
+            </div>
+        </div>
+    `;
 }
 
 function showModal() {
@@ -454,5 +641,12 @@ document.addEventListener('DOMContentLoaded', function() {
             closeDetailsModal();
         }
     });
+    
+    document.getElementById('testRunModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeTestRunModal();
+        }
+    });
+    
     init();
 });

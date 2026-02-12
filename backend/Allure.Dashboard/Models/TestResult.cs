@@ -14,6 +14,19 @@ public class TestResult
     public string? HistoryId { get; set; }
     public string? Source { get; set; }
     public List<Step>? Steps { get; set; }
+    public List<Attachment>? Attachments { get; set; }
+}
+
+public class Attachment
+{
+    [JsonProperty("name")]
+    public string? Name { get; set; }
+    
+    [JsonProperty("source")]
+    public string? Source { get; set; }
+    
+    [JsonProperty("type")]
+    public string? Type { get; set; }
 }
 
 public class Label
@@ -61,7 +74,7 @@ public class Step
     public List<Step>? Steps { get; set; }
     
     [JsonProperty("attachments")]
-    public List<object>? Attachments { get; set; }
+    public List<Attachment>? Attachments { get; set; }
     
     [JsonProperty("parameters")]
     public List<object>? Parameters { get; set; }
@@ -106,7 +119,7 @@ public class TestReport
     public long Stop { get; set; }
     
     [JsonProperty("attachments")]
-    public List<object>? Attachments { get; set; }
+    public List<Attachment>? Attachments { get; set; }
     
     [JsonProperty("parameters")]
     public List<object>? Parameters { get; set; }
@@ -124,8 +137,23 @@ public class FilterRequest
     public string? Status { get; set; }
 }
 
+public class TestRun
+{
+    public string? Id { get; set; }
+    public string? Name { get; set; }
+    public DateTime StartTime { get; set; }
+    public DateTime EndTime { get; set; }
+    public List<TestResult>? Results { get; set; }
+    public int PassedCount { get; set; }
+    public int FailedCount { get; set; }
+    public int SkippedCount { get; set; }
+    public int BrokenCount { get; set; }
+    public double PassRate { get; set; }
+}
+
 public class DashboardData
 {
+    public List<TestRun>? TestRuns { get; set; }
     public List<TestResult>? Results { get; set; }
     public Dictionary<string, int>? StatusCounts { get; set; }
     public List<string>? Projects { get; set; }

@@ -8,6 +8,7 @@ public class AllureService : IAllureService
 {
     private readonly ILogger<AllureService> _logger;
     private readonly string _reportsPath;
+    private List<TestRun> _cachedTestRuns = new();
     private List<TestResult> _cachedResults = new();
     private List<string> _projects = new();
     private List<string> _tags = new();
@@ -22,6 +23,7 @@ public class AllureService : IAllureService
     {
         try
         {
+            _cachedTestRuns.Clear();
             _cachedResults.Clear();
             _projects.Clear();
             _tags.Clear();
@@ -33,19 +35,14 @@ public class AllureService : IAllureService
                 return;
             }
 
-            // Look for test-cases directory or json files
-            var testCasesDir = Path.Combine(_reportsPath, "data", "test-cases");
             var resultsDir = Path.Combine(_reportsPath, "data", "test-results");
-
-            // Load history.json for metadata
-            var historyFile = Path.Combine(_reportsPath, "data", "history.json");
             
             if (Directory.Exists(resultsDir))
             {
-                await LoadTestResultsAsync(resultsDir, historyFile);
+                await LoadTestRunsAsync(resultsDir);
             }
 
-            _logger.LogInformation($"Loaded {_cachedResults.Count} test results");
+            _logger.LogInformation($"Loaded {_cachedTestRuns.Count} test runs with {_cachedResults.Count} test results");
         }
         catch (Exception ex)
         {
@@ -53,26 +50,8 @@ public class AllureService : IAllureService
         }
     }
 
-    private async Task LoadTestResultsAsync(string resultsDir, string historyFile)
+    private async Task LoadTestRunsAsync(string resultsDir)
     {
-        var historyData = new Dictionary<string, JObject>();
-        
-        // Load history data if it exists
-        if (File.Exists(historyFile))
-        {
-            try
-            {
-                var historyContent = await File.ReadAllTextAsync(historyFile);
-                if (!string.IsNullOrEmpty(historyContent))
-                {
-                    historyData = JsonConvert.DeserializeObject<Dictionary<string, JObject>>(historyContent) ?? new();
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning($"Could not read history file: {ex.Message}");
-            }
-        }
 
         // Load all JSON files from results directory
         var jsonFiles = Directory.GetFiles(resultsDir, "*.json", SearchOption.TopDirectoryOnly);
@@ -82,40 +61,47 @@ public class AllureService : IAllureService
             try
             {
                 var content = await File.ReadAllTextAsync(file);
-                var report = JsonConvert.DeserializeObject<TestReport>(content);
-
-                if (report != null && !string.IsNullOrEmpty(report.Uuid))
+                var testResults = ParseTestResults(content, file);
+                
+                if (testResults.Count > 0)
                 {
-                    // Convert milliseconds to DateTime (Unix milliseconds)
-                    var timestamp = UnixTimeStampToDateTime(report.Start);
-                    var duration = report.Stop - report.Start;
-
-                    var result = new TestResult
+                    // Create a test run from this file
+                    var startTime = testResults.Min(r => r.Timestamp);
+                    var endTime = testResults.Max(r => r.Timestamp.AddMilliseconds(r.Duration));
+                    var runId = Path.GetFileNameWithoutExtension(file);
+                    
+                    var testRun = new TestRun
                     {
-                        Id = report.Uuid,
-                        Name = report.Name,
-                        HistoryId = report.HistoryId,
-                        Status = report.Status?.ToUpper() ?? "UNKNOWN",
-                        Project = ExtractProjectName(report),
-                        Tags = ExtractTags(report),
-                        Timestamp = timestamp,
-                        Duration = duration,
-                        Source = file,
-                        Steps = report.Steps
+                        Id = runId,
+                        Name = $"Test Run - {startTime:yyyy-MM-dd HH:mm:ss}",
+                        StartTime = startTime,
+                        EndTime = endTime,
+                        Results = testResults,
+                        PassedCount = testResults.Count(r => r.Status == "PASSED"),
+                        FailedCount = testResults.Count(r => r.Status == "FAILED"),
+                        SkippedCount = testResults.Count(r => r.Status == "SKIPPED"),
+                        BrokenCount = testResults.Count(r => r.Status == "BROKEN")
                     };
-
-                    _cachedResults.Add(result);
-
+                    
+                    testRun.PassRate = testRun.PassedCount > 0 ? 
+                        (double)testRun.PassedCount / testResults.Count * 100 : 0;
+                    
+                    _cachedTestRuns.Add(testRun);
+                    _cachedResults.AddRange(testResults);
+                    
                     // Track projects and tags
-                    if (!string.IsNullOrEmpty(result.Project) && !_projects.Contains(result.Project))
-                        _projects.Add(result.Project);
-
-                    if (result.Tags != null)
+                    foreach (var result in testResults)
                     {
-                        foreach (var tag in result.Tags)
+                        if (!string.IsNullOrEmpty(result.Project) && !_projects.Contains(result.Project))
+                            _projects.Add(result.Project);
+
+                        if (result.Tags != null)
                         {
-                            if (!_tags.Contains(tag))
-                                _tags.Add(tag);
+                            foreach (var tag in result.Tags)
+                            {
+                                if (!_tags.Contains(tag))
+                                    _tags.Add(tag);
+                            }
                         }
                     }
                 }
@@ -126,8 +112,74 @@ public class AllureService : IAllureService
             }
         }
 
-        // Sort by timestamp descending
+        // Sort test runs by start time descending
+        _cachedTestRuns = _cachedTestRuns.OrderByDescending(r => r.StartTime).ToList();
         _cachedResults = _cachedResults.OrderByDescending(r => r.Timestamp).ToList();
+    }
+
+    private List<TestResult> ParseTestResults(string content, string sourceFile)
+    {
+        var results = new List<TestResult>();
+        
+        try
+        {
+            // Try parsing as an array first
+            if (content.TrimStart().StartsWith("["))
+            {
+                var reports = JsonConvert.DeserializeObject<List<TestReport>>(content);
+                if (reports != null)
+                {
+                    foreach (var report in reports)
+                    {
+                        var result = ConvertReportToResult(report, sourceFile);
+                        if (result != null)
+                            results.Add(result);
+                    }
+                    return results;
+                }
+            }
+            else
+            {
+                // Parse as single object
+                var report = JsonConvert.DeserializeObject<TestReport>(content);
+                if (report != null)
+                {
+                    var result = ConvertReportToResult(report, sourceFile);
+                    if (result != null)
+                        results.Add(result);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning($"Error parsing JSON content: {ex.Message}");
+        }
+        
+        return results;
+    }
+
+    private TestResult? ConvertReportToResult(TestReport report, string sourceFile)
+    {
+        if (report == null || string.IsNullOrEmpty(report.Uuid))
+            return null;
+
+        var timestamp = UnixTimeStampToDateTime(report.Start);
+        var duration = report.Stop - report.Start;
+
+        return new TestResult
+        {
+            Id = report.Uuid,
+            Name = report.Name,
+            HistoryId = report.HistoryId,
+            Status = report.Status?.ToUpper() ?? "UNKNOWN",
+            Project = ExtractProjectName(report),
+            Tags = ExtractTags(report),
+            Timestamp = timestamp,
+            Duration = duration,
+            Source = sourceFile,
+            Steps = report.Steps,
+            Attachments = report.Attachments
+        };
     }
 
     private DateTime UnixTimeStampToDateTime(long milliseconds)
@@ -200,9 +252,35 @@ public class AllureService : IAllureService
         return await Task.FromResult(results.ToList());
     }
 
+    public async Task<List<TestRun>> GetTestRunsAsync(FilterRequest? filter = null)
+    {
+        var testRuns = _cachedTestRuns.AsEnumerable();
+
+        if (filter != null)
+        {
+            if (!string.IsNullOrEmpty(filter.Project))
+                testRuns = testRuns.Where(r => r.Results?.Any(t => t.Project == filter.Project) ?? false);
+
+            if (filter.Tags?.Count > 0)
+                testRuns = testRuns.Where(r => r.Results?.Any(t => t.Tags != null && t.Tags.Any(tag => filter.Tags.Contains(tag))) ?? false);
+
+            if (filter.StartDate.HasValue)
+                testRuns = testRuns.Where(r => r.StartTime >= filter.StartDate.Value);
+
+            if (filter.EndDate.HasValue)
+                testRuns = testRuns.Where(r => r.EndTime <= filter.EndDate.Value);
+
+            if (!string.IsNullOrEmpty(filter.Status))
+                testRuns = testRuns.Where(r => r.Results?.Any(t => t.Status == filter.Status) ?? false);
+        }
+
+        return await Task.FromResult(testRuns.ToList());
+    }
+
     public async Task<DashboardData> GetAllDataAsync(FilterRequest? filter = null)
     {
         var results = await GetTestResultsAsync(filter);
+        var testRuns = await GetTestRunsAsync(filter);
 
         var passed = results.Count(r => r.Status == "PASSED");
         var total = results.Count;
@@ -210,6 +288,7 @@ public class AllureService : IAllureService
 
         return new DashboardData
         {
+            TestRuns = testRuns,
             Results = results,
             StatusCounts = new Dictionary<string, int>
             {
