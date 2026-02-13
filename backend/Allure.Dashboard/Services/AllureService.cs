@@ -272,7 +272,7 @@ public class AllureService : IAllureService
                 results = results.Where(r => r.Timestamp <= filter.EndDate.Value);
 
             if (!string.IsNullOrEmpty(filter.Status))
-                results = results.Where(r => r.Status == filter.Status);
+                results = results.Where(r => !string.IsNullOrEmpty(r.Status) && r.Status.Equals(filter.Status, StringComparison.OrdinalIgnoreCase));
         }
 
         return await Task.FromResult(results.ToList());
@@ -297,7 +297,7 @@ public class AllureService : IAllureService
                 testRuns = testRuns.Where(r => r.EndTime <= filter.EndDate.Value);
 
             if (!string.IsNullOrEmpty(filter.Status))
-                testRuns = testRuns.Where(r => r.Results?.Any(t => t.Status == filter.Status) ?? false);
+                testRuns = testRuns.Where(r => r.Results?.Any(t => !string.IsNullOrEmpty(t.Status) && t.Status.Equals(filter.Status, StringComparison.OrdinalIgnoreCase)) ?? false);
         }
 
         return await Task.FromResult(testRuns.ToList());
@@ -360,7 +360,7 @@ public class AllureService : IAllureService
                 filteredResults = filteredResults.Where(r => r.Timestamp <= filter.EndDate.Value);
 
             if (!string.IsNullOrEmpty(filter.Status))
-                filteredResults = filteredResults.Where(r => r.Status == filter.Status);
+                filteredResults = filteredResults.Where(r => !string.IsNullOrEmpty(r.Status) && r.Status.Equals(filter.Status, StringComparison.OrdinalIgnoreCase));
         }
 
         var groupedByTime = new Dictionary<string, List<TestResult>>();
