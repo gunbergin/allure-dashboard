@@ -131,6 +131,7 @@ function renderTagsFilter() {
             const label = document.createElement('label');
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
+            checkbox.className = 'tag-checkbox';
             checkbox.value = tag;
             checkbox.checked = currentFilters.tags.includes(tag);
             checkbox.addEventListener('change', function() {
@@ -227,6 +228,7 @@ function applyFilters() {
     currentFilters.status = document.getElementById('statusFilter').value;
     currentFilters.startDate = document.getElementById('startDate').value;
     currentFilters.endDate = document.getElementById('endDate').value;
+    // Note: currentFilters.tags is managed by the tags combobox, not by HTML form elements
     
     loadDashboard();
     loadTestCasesByTime();
@@ -246,12 +248,14 @@ function clearFilters() {
     document.getElementById('startDate').value = '';
     document.getElementById('endDate').value = '';
     
-    // Uncheck all tag checkboxes
-    document.querySelectorAll('.tag-checkbox input').forEach(checkbox => {
+    // Uncheck all tag checkboxes and re-render tags filter
+    document.querySelectorAll('input.tag-checkbox').forEach(checkbox => {
         checkbox.checked = false;
     });
+    renderTagsFilter();
     
     loadDashboard();
+    loadTestCasesByTime();
 }
 
 async function refreshData() {
