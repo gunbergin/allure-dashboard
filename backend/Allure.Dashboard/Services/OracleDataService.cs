@@ -11,6 +11,7 @@ public interface IOracleDataService
     Task<List<OracleAllureStep>> GetStepsForResultAsync(long resultId);
     Task<List<string>> GetDistinctFeaturesAsync();
     Task<List<string>> GetDistinctLabelsAsync();
+    Task<List<string>> GetDistinctTagsAsync();
 }
 
 public class OracleDataService : IOracleDataService
@@ -225,13 +226,11 @@ public class OracleDataService : IOracleDataService
                             if (!reader.IsDBNull(0))
                             {
                                 var labelStr = reader.GetString(0);
-                                // Parse comma-separated labels
-                                var items = labelStr.Split(',');
-                                foreach (var item in items)
+                                var parsedLabels = ParseLabelsFromString(labelStr);
+                                foreach (var label in parsedLabels)
                                 {
-                                    var trimmed = item.Trim();
-                                    if (!string.IsNullOrEmpty(trimmed) && !labels.Contains(trimmed))
-                                        labels.Add(trimmed);
+                                    if (!string.IsNullOrEmpty(label) && !labels.Contains(label))
+                                        labels.Add(label);
                                 }
                             }
                         }
@@ -246,6 +245,134 @@ public class OracleDataService : IOracleDataService
 
         return labels;
     }
+
+    public async Task<List<string>> GetDistinctTagsAsync()
+    {
+        var tags = new List<string>();
+        var query = "SELECT DISTINCT TAGS FROM TEST_SCENARIOS WHERE TAGS IS NOT NULL";
+
+        try
+        {
+            using (var connection = new OracleConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                using (var command = new OracleCommand(query, connection))
+                {
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            if (!reader.IsDBNull(0))
+                            {
+                                var tagsStr = reader.GetString(0);
+                                var parsedTags = ParseTagsFromString(tagsStr);
+                                foreach (var tag in parsedTags)
+                                {
+                                    if (!string.IsNullOrEmpty(tag) && !tags.Contains(tag))
+                                        tags.Add(tag);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error fetching distinct tags: {ex.Message}");
+        }
+
+        return tags;
+    }
+
+    private List<string> ParseLabelsFromString(string labelStr)
+    {
+        var labels = new List<string>();
+        
+        if (string.IsNullOrEmpty(labelStr))
+            return labels;
+
+        // Try to parse as JSON first (label format: {"name":"tag","value":"sometag"})
+        try
+        {
+            if (labelStr.Contains("{"))
+            {
+                // Handle JSON array or single JSON object
+                var trimmed = labelStr.Trim();
+                if (!trimmed.StartsWith("["))
+                    trimmed = "[" + trimmed + "]";
+                
+                // Simple regex parsing for name-value pairs in JSON
+                var parts = System.Text.RegularExpressions.Regex.Matches(trimmed, @"""value""\s*:\s*""([^""]+)""");
+                foreach (System.Text.RegularExpressions.Match match in parts)
+                {
+                    if (match.Groups.Count > 1)
+                        labels.Add(match.Groups[1].Value);
+                }
+                
+                if (labels.Count > 0)
+                    return labels;
+            }
+        }
+        catch { }
+
+        // Parse pipe-separated (common in Allure: tag1|tag2|tag3)
+        if (labelStr.Contains("|"))
+        {
+            var items = labelStr.Split('|');
+            foreach (var item in items)
+            {
+                var trimmed = item.Trim();
+                if (!string.IsNullOrEmpty(trimmed))
+                    labels.Add(trimmed);
+            }
+            return labels;
+        }
+
+        // Parse comma-separated as fallback
+        var parts2 = labelStr.Split(',');
+        foreach (var item in parts2)
+        {
+            var trimmed = item.Trim();
+            if (!string.IsNullOrEmpty(trimmed))
+                labels.Add(trimmed);
+        }
+
+        return labels;
+    }
+
+    private List<string> ParseTagsFromString(string tagsStr)
+    {
+        var tags = new List<string>();
+        
+        if (string.IsNullOrEmpty(tagsStr))
+            return tags;
+
+        // Parse pipe-separated tags
+        if (tagsStr.Contains("|"))
+        {
+            var items = tagsStr.Split('|');
+            foreach (var item in items)
+            {
+                var trimmed = item.Trim();
+                if (!string.IsNullOrEmpty(trimmed))
+                    tags.Add(trimmed);
+            }
+            return tags;
+        }
+
+        // Parse comma-separated tags
+        var parts = tagsStr.Split(',');
+        foreach (var item in parts)
+        {
+            var trimmed = item.Trim();
+            if (!string.IsNullOrEmpty(trimmed))
+                tags.Add(trimmed);
+        }
+
+        return tags;
+    }
+
 
     private OracleAllureResult MapReaderToAllureResult(OracleDataReader reader)
     {

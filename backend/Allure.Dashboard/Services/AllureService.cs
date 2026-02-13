@@ -97,6 +97,14 @@ public class AllureService : IAllureService
                 }
             }
 
+            // Get all distinct tags from database
+            var distinctTags = await _oracleDataService.GetDistinctTagsAsync();
+            foreach (var tag in distinctTags)
+            {
+                if (!_tags.Contains(tag))
+                    _tags.Add(tag);
+            }
+
             // Create test runs from results grouped by date
             var resultsByDate = _cachedResults.GroupBy(r => r.Timestamp.Date);
             foreach (var dateGroup in resultsByDate)
@@ -140,15 +148,8 @@ public class AllureService : IAllureService
             var timestamp = UnixTimeStampToDateTime(oracleResult.StartTime);
             var duration = oracleResult.EndTime - oracleResult.StartTime;
 
-            // Parse labels/tags from comma-separated string
-            var tags = new List<string>();
-            if (!string.IsNullOrEmpty(oracleResult.Labels))
-            {
-                tags = oracleResult.Labels.Split(',')
-                    .Select(t => t.Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-            }
+            // Parse labels/tags using format-aware extraction
+            var tags = ExtractTagsFromOracleLabels(oracleResult.Labels);
 
             return new TestResult
             {
@@ -170,6 +171,62 @@ public class AllureService : IAllureService
             _logger.LogError($"Error converting Oracle result: {ex.Message}");
             return null;
         }
+    }
+
+    private List<string> ExtractTagsFromOracleLabels(string? labelsStr)
+    {
+        var tags = new List<string>();
+        
+        if (string.IsNullOrEmpty(labelsStr))
+            return tags;
+
+        // Try to parse as JSON first (label format: {"name":"tag","value":"sometag"})
+        try
+        {
+            if (labelsStr.Contains("{"))
+            {
+                // Handle JSON array or single JSON object
+                var trimmed = labelsStr.Trim();
+                if (!trimmed.StartsWith("["))
+                    trimmed = "[" + trimmed + "]";
+                
+                // Simple regex parsing for name-value pairs in JSON
+                var parts = System.Text.RegularExpressions.Regex.Matches(trimmed, @"""value""\s*:\s*""([^""]+)""");
+                foreach (System.Text.RegularExpressions.Match match in parts)
+                {
+                    if (match.Groups.Count > 1)
+                        tags.Add(match.Groups[1].Value);
+                }
+                
+                if (tags.Count > 0)
+                    return tags;
+            }
+        }
+        catch { }
+
+        // Parse pipe-separated (common in Allure: tag1|tag2|tag3)
+        if (labelsStr.Contains("|"))
+        {
+            var items = labelsStr.Split('|');
+            foreach (var item in items)
+            {
+                var trimmed = item.Trim();
+                if (!string.IsNullOrEmpty(trimmed))
+                    tags.Add(trimmed);
+            }
+            return tags;
+        }
+
+        // Parse comma-separated as fallback
+        var parts2 = labelsStr.Split(',');
+        foreach (var item in parts2)
+        {
+            var trimmed = item.Trim();
+            if (!string.IsNullOrEmpty(trimmed))
+                tags.Add(trimmed);
+        }
+
+        return tags;
     }
 
     private async Task LoadTestRunsAsync(string resultsDir)
