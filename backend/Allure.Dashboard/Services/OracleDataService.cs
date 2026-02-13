@@ -248,41 +248,8 @@ public class OracleDataService : IOracleDataService
 
     public async Task<List<string>> GetDistinctTagsAsync()
     {
-        var tags = new List<string>();
-        var query = "SELECT DISTINCT TAGS FROM TEST_SCENARIOS WHERE TAGS IS NOT NULL";
-
-        try
-        {
-            using (var connection = new OracleConnection(_connectionString))
-            {
-                await connection.OpenAsync();
-                using (var command = new OracleCommand(query, connection))
-                {
-                    using (var reader = await command.ExecuteReaderAsync())
-                    {
-                        while (await reader.ReadAsync())
-                        {
-                            if (!reader.IsDBNull(0))
-                            {
-                                var tagsStr = reader.GetString(0);
-                                var parsedTags = ParseTagsFromString(tagsStr);
-                                foreach (var tag in parsedTags)
-                                {
-                                    if (!string.IsNullOrEmpty(tag) && !tags.Contains(tag))
-                                        tags.Add(tag);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Error fetching distinct tags: {ex.Message}");
-        }
-
-        return tags;
+        // Tags are stored in LABELS field in ALLURE_RESULTS, so use the same logic
+        return await GetDistinctLabelsAsync();
     }
 
     private List<string> ParseLabelsFromString(string labelStr)
@@ -316,6 +283,19 @@ public class OracleDataService : IOracleDataService
         }
         catch { }
 
+        // Parse semicolon-separated (e.g., "Smoke; PoliçeSorgulama; All")
+        if (labelStr.Contains(";"))
+        {
+            var items = labelStr.Split(';');
+            foreach (var item in items)
+            {
+                var trimmed = item.Trim();
+                if (!string.IsNullOrEmpty(trimmed))
+                    labels.Add(trimmed);
+            }
+            return labels;
+        }
+
         // Parse pipe-separated (common in Allure: tag1|tag2|tag3)
         if (labelStr.Contains("|"))
         {
@@ -341,37 +321,7 @@ public class OracleDataService : IOracleDataService
         return labels;
     }
 
-    private List<string> ParseTagsFromString(string tagsStr)
-    {
-        var tags = new List<string>();
-        
-        if (string.IsNullOrEmpty(tagsStr))
-            return tags;
 
-        // Parse pipe-separated tags
-        if (tagsStr.Contains("|"))
-        {
-            var items = tagsStr.Split('|');
-            foreach (var item in items)
-            {
-                var trimmed = item.Trim();
-                if (!string.IsNullOrEmpty(trimmed))
-                    tags.Add(trimmed);
-            }
-            return tags;
-        }
-
-        // Parse comma-separated tags
-        var parts = tagsStr.Split(',');
-        foreach (var item in parts)
-        {
-            var trimmed = item.Trim();
-            if (!string.IsNullOrEmpty(trimmed))
-                tags.Add(trimmed);
-        }
-
-        return tags;
-    }
 
 
     private OracleAllureResult MapReaderToAllureResult(OracleDataReader reader)

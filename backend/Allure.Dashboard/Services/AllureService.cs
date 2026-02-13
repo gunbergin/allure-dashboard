@@ -62,6 +62,13 @@ public class AllureService : IAllureService
                 var testResult = ConvertOracleResultToTestResult(oracleResult);
                 if (testResult != null)
                 {
+                    // Load steps for this result
+                    var steps = await _oracleDataService.GetStepsForResultAsync(oracleResult.Id);
+                    if (steps.Count > 0)
+                    {
+                        testResult.Steps = steps.Select(s => ConvertOracleStepToStep(s)).ToList();
+                    }
+
                     _cachedResults.Add(testResult);
                     
                     // Extract projects and tags
@@ -144,7 +151,7 @@ public class AllureService : IAllureService
                 Timestamp = timestamp,
                 Duration = duration,
                 Source = oracleResult.Uuid,
-                Steps = null, // Will be loaded separately if needed
+                Steps = new List<Step>(), // Will be populated from database
                 Attachments = null // Will be loaded separately if needed
             };
         }
@@ -209,6 +216,21 @@ public class AllureService : IAllureService
         }
 
         return tags;
+    }
+
+    private Step ConvertOracleStepToStep(OracleAllureStep oracleStep)
+    {
+        return new Step
+        {
+            Name = oracleStep.Name,
+            Status = oracleStep.Status?.ToLower() ?? "unknown",
+            Stage = oracleStep.Stage?.ToLower() ?? "finished",
+            Start = oracleStep.StartTime,
+            Stop = oracleStep.EndTime,
+            Steps = null, // Nested steps not currently supported
+            Attachments = null, // Attachments loaded separately if needed
+            Parameters = null
+        };
     }
 
     private DateTime UnixTimeStampToDateTime(long milliseconds)
