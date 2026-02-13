@@ -22,8 +22,8 @@ public class OracleDataService : IOracleDataService
     public OracleDataService(ILogger<OracleDataService> logger, IConfiguration configuration)
     {
         _logger = logger;
-        _connectionString = configuration["Database:ConnectionString"] ?? 
-            "Data Source=localhost:1521/xe;User Id=nova_user;Password=password;";
+        _connectionString = configuration["Database:ConnectionString"];
+           
     }
 
     public async Task<List<OracleAllureResult>> GetAllureResultsAsync()
