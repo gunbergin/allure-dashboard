@@ -193,6 +193,19 @@ public class AllureService : IAllureService
         }
         catch { }
 
+        // Parse semicolon-separated (e.g., "Smoke; PoliçeSorgulama; All")
+        if (labelsStr.Contains(";"))
+        {
+            var items = labelsStr.Split(';');
+            foreach (var item in items)
+            {
+                var trimmed = item.Trim();
+                if (!string.IsNullOrEmpty(trimmed))
+                    tags.Add(trimmed);
+            }
+            return tags;
+        }
+
         // Parse pipe-separated (common in Allure: tag1|tag2|tag3)
         if (labelsStr.Contains("|"))
         {
