@@ -19,28 +19,31 @@ let currentTimeGroupView = 'card'; // 'card' or 'table'
 // Initialize the dashboard
 async function init() {
     try {
-        await loadProjects();
-        await loadTags();
-        await loadDashboard();
-        await loadTestCasesByTime();
-
-        // Set default date values: startDate = 1 month before today, endDate = today
+        // Set default date values FIRST: startDate = 1 week (7 days) before today, endDate = today
         const today = new Date();
         const yyyy = today.getFullYear();
         const mm = String(today.getMonth() + 1).padStart(2, '0');
         const dd = String(today.getDate()).padStart(2, '0');
         const endDateStr = `${yyyy}-${mm}-${dd}`;
-        // Calculate 1 month before
-        const oneMonthAgo = new Date(today);
-        oneMonthAgo.setMonth(today.getMonth() - 1);
-        const prevYyyy = oneMonthAgo.getFullYear();
-        const prevMm = String(oneMonthAgo.getMonth() + 1).padStart(2, '0');
-        const prevDd = String(oneMonthAgo.getDate()).padStart(2, '0');
+        // Calculate 7 days ago
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        const prevYyyy = sevenDaysAgo.getFullYear();
+        const prevMm = String(sevenDaysAgo.getMonth() + 1).padStart(2, '0');
+        const prevDd = String(sevenDaysAgo.getDate()).padStart(2, '0');
         const startDateStr = `${prevYyyy}-${prevMm}-${prevDd}`;
         const startDateInput = document.getElementById('startDate');
         const endDateInput = document.getElementById('endDate');
         if (startDateInput && !startDateInput.value) startDateInput.value = startDateStr;
         if (endDateInput && !endDateInput.value) endDateInput.value = endDateStr;
+        // Apply initial filters to load with 1-week default
+        currentFilters.startDate = startDateStr;
+        currentFilters.endDate = endDateStr;
+
+        await loadProjects();
+        await loadTags();
+        await loadDashboard();
+        await loadTestCasesByTime();
 
         // Event listeners for filters
         document.getElementById('applyFilters').addEventListener('click', applyFilters);

@@ -242,7 +242,8 @@ public class AllureService : IAllureService
             Stop = oracleStep.EndTime,
             Steps = null, // Nested steps not currently supported
             Attachments = null, // Attachments loaded separately if needed
-            Parameters = null
+            Parameters = null,
+            ScreenshotPath = oracleStep.ScreenshotPath
         };
     }
 
