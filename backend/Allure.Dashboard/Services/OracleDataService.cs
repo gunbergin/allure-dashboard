@@ -145,7 +145,7 @@ public class OracleDataService : IOracleDataService
         var query = @"
             SELECT ID, ALLURE_RESULT_ID, NAME, STATUS, START_TIME, END_TIME, 
                    DURATION_MS, STAGE, MESSAGE, TRACE, ATTACHMENTS_COUNT, 
-                   NESTED_STEPS_COUNT, CREATED_AT
+                   NESTED_STEPS_COUNT, SCREENSHOT_PATH, CREATED_AT
             FROM ALLURE_STEPS
             WHERE ALLURE_RESULT_ID = :resultId
             ORDER BY START_TIME ASC";
@@ -367,7 +367,8 @@ public class OracleDataService : IOracleDataService
             Trace = reader.IsDBNull(9) ? null : reader.GetString(9),
             AttachmentsCount = reader.IsDBNull(10) ? 0 : (int)reader.GetInt64(10),
             NestedStepsCount = reader.IsDBNull(11) ? 0 : (int)reader.GetInt64(11),
-            CreatedAt = reader.IsDBNull(12) ? DateTime.Now : reader.GetDateTime(12)
+            ScreenshotPath = reader.IsDBNull(12) ? null : reader.GetString(12),
+            CreatedAt = reader.IsDBNull(13) ? DateTime.Now : reader.GetDateTime(13)
         };
     }
 }

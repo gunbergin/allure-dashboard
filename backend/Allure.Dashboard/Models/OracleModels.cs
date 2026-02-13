@@ -72,5 +72,6 @@ public class OracleAllureStep
     public string? Trace { get; set; }
     public int AttachmentsCount { get; set; }
     public int NestedStepsCount { get; set; }
+    public string? ScreenshotPath { get; set; }
     public DateTime CreatedAt { get; set; }
 }
