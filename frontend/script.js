@@ -668,56 +668,134 @@ function closeImageLightbox() {
 }
 
 function updateCharts(data) {
-    const statusCounts = data.statusCounts || {
-        PASSED: 0,
-        FAILED: 0,
-        SKIPPED: 0,
-        BROKEN: 0
-    };
+    // Calculate daily totals from test runs
+    const dailyTotals = {};
+    if (data.testRuns && Array.isArray(data.testRuns)) {
+        data.testRuns.forEach(run => {
+            const date = new Date(run.startTime);
+            const dateStr = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+            if (!dailyTotals[dateStr]) {
+                dailyTotals[dateStr] = {
+                    total: 0,
+                    passed: 0,
+                    failed: 0,
+                    skipped: 0,
+                    broken: 0
+                };
+            }
+            const testCount = (run.results && run.results.length) || 0;
+            dailyTotals[dateStr].total += testCount;
+            dailyTotals[dateStr].passed += run.passedCount || 0;
+            dailyTotals[dateStr].failed += run.failedCount || 0;
+            dailyTotals[dateStr].skipped += run.skippedCount || 0;
+            dailyTotals[dateStr].broken += run.brokenCount || 0;
+        });
+    }
 
-    updateStatusChart(statusCounts);
-    updateBreakdownChart(statusCounts);
+    updateStatusChart(dailyTotals);
+    updateBreakdownChart(data.statusCounts || {});
 }
 
-function updateStatusChart(statusCounts) {
+function updateStatusChart(dailyTotals) {
     const ctx = document.getElementById('statusChart');
     if (!ctx) return;
 
-    const colors = ['#059669', '#dc2626', '#d97706', '#d97706'];
-    const labels = ['Passed', 'Failed', 'Skipped', 'Broken'];
-    const data = [
-        statusCounts.PASSED || 0,
-        statusCounts.FAILED || 0,
-        statusCounts.SKIPPED || 0,
-        statusCounts.BROKEN || 0
-    ];
+    // Sort dates and prepare data
+    const dates = Object.keys(dailyTotals).sort((a, b) => new Date(a) - new Date(b));
+    const totals = dates.map(date => dailyTotals[date].total);
+    const passed = dates.map(date => dailyTotals[date].passed);
+    const failed = dates.map(date => dailyTotals[date].failed);
+    const skipped = dates.map(date => dailyTotals[date].skipped);
+    const broken = dates.map(date => dailyTotals[date].broken);
 
     if (statusChart) {
         statusChart.destroy();
     }
 
     statusChart = new Chart(ctx, {
-        type: 'doughnut',
+        type: 'bar',
         data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: colors,
-                borderColor: '#fff',
-                borderWidth: 2,
-                hoverOffset: 4
-            }]
+            labels: dates.length > 0 ? dates : ['No Data'],
+            datasets: [
+                {
+                    label: 'Passed',
+                    data: passed,
+                    backgroundColor: '#059669',
+                    borderColor: '#059669',
+                    borderWidth: 0,
+                    borderRadius: 6
+                },
+                {
+                    label: 'Failed',
+                    data: failed,
+                    backgroundColor: '#dc2626',
+                    borderColor: '#dc2626',
+                    borderWidth: 0,
+                    borderRadius: 6
+                },
+                {
+                    label: 'Skipped',
+                    data: skipped,
+                    backgroundColor: '#d97706',
+                    borderColor: '#d97706',
+                    borderWidth: 0,
+                    borderRadius: 6
+                },
+                {
+                    label: 'Broken',
+                    data: broken,
+                    backgroundColor: '#8b5cf6',
+                    borderColor: '#8b5cf6',
+                    borderWidth: 0,
+                    borderRadius: 6
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
             plugins: {
                 legend: {
-                    position: 'bottom',
+                    position: 'top',
                     labels: {
                         font: { size: 12, weight: '600' },
                         padding: 15,
                         color: '#1f2937'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function(context) {
+                            if (context.datasetIndex === 3) { // After broken (last dataset)
+                                const index = context.dataIndex;
+                                const total = passed[index] + failed[index] + skipped[index] + broken[index];
+                                return 'Total: ' + total;
+                            }
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    ticks: {
+                        color: '#6b7280',
+                        font: { size: 12 }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1,
+                        color: '#6b7280',
+                        font: { size: 12 }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
                     }
                 }
             }
