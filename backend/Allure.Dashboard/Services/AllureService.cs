@@ -7,7 +7,6 @@ using Newtonsoft.Json.Linq;
 public class AllureService : IAllureService
 {
     private readonly ILogger<AllureService> _logger;
-    private readonly string _reportsPath;
     private readonly IOracleDataService _oracleDataService;
     private List<TestRun> _cachedTestRuns = new();
     private List<TestResult> _cachedResults = new();
@@ -18,7 +17,6 @@ public class AllureService : IAllureService
     public AllureService(ILogger<AllureService> logger, IConfiguration configuration, IOracleDataService oracleDataService)
     {
         _logger = logger;
-        _reportsPath = configuration["AllureReportsPath"] ?? "./allure-reports";
         _oracleDataService = oracleDataService;
         _useOracleDatabase = configuration["Database:Provider"] == "Oracle";
     }
@@ -35,22 +33,6 @@ public class AllureService : IAllureService
             if (_useOracleDatabase)
             {
                 await LoadFromOracleDatabaseAsync();
-            }
-            else
-            {
-                // Fallback to JSON file reading
-                if (!Directory.Exists(_reportsPath))
-                {
-                    _logger.LogWarning($"Reports path not found: {_reportsPath}");
-                    return;
-                }
-
-                var resultsDir = Path.Combine(_reportsPath, "data", "test-results");
-                
-                if (Directory.Exists(resultsDir))
-                {
-                    await LoadTestRunsAsync(resultsDir);
-                }
             }
 
             _logger.LogInformation($"Loaded {_cachedTestRuns.Count} test runs with {_cachedResults.Count} test results from {(_useOracleDatabase ? "Oracle Database" : "JSON Files")}");
@@ -229,252 +211,11 @@ public class AllureService : IAllureService
         return tags;
     }
 
-    private async Task LoadTestRunsAsync(string resultsDir)
-    {
-        // Load all JSON files from results directory
-        var jsonFiles = Directory.GetFiles(resultsDir, "*.json", SearchOption.TopDirectoryOnly);
-        
-        foreach (var file in jsonFiles)
-        {
-            try
-            {
-                var content = await File.ReadAllTextAsync(file);
-                var testResults = ParseTestResults(content, file);
-                
-                if (testResults.Count > 0)
-                {
-                    // Create a test run from this file
-                    var startTime = testResults.Min(r => r.Timestamp);
-                    var endTime = testResults.Max(r => r.Timestamp.AddMilliseconds(r.Duration));
-                    var runId = Path.GetFileNameWithoutExtension(file);
-                    
-                    var testRun = new TestRun
-                    {
-                        Id = runId,
-                        Name = $"Test Run - {startTime:yyyy-MM-dd HH:mm:ss}",
-                        StartTime = startTime,
-                        EndTime = endTime,
-                        Results = testResults,
-                        PassedCount = testResults.Count(r => r.Status == "PASSED"),
-                        FailedCount = testResults.Count(r => r.Status == "FAILED"),
-                        SkippedCount = testResults.Count(r => r.Status == "SKIPPED"),
-                        BrokenCount = testResults.Count(r => r.Status == "BROKEN")
-                    };
-                    
-                    testRun.PassRate = testRun.PassedCount > 0 ? 
-                        (double)testRun.PassedCount / testResults.Count * 100 : 0;
-                    
-                    _cachedTestRuns.Add(testRun);
-                    _cachedResults.AddRange(testResults);
-                    
-                    // Track projects and tags
-                    foreach (var result in testResults)
-                    {
-                        if (!string.IsNullOrEmpty(result.Project) && !_projects.Contains(result.Project))
-                            _projects.Add(result.Project);
-
-                        if (result.Tags != null)
-                        {
-                            foreach (var tag in result.Tags)
-                            {
-                                if (!_tags.Contains(tag))
-                                    _tags.Add(tag);
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning($"Could not parse file {file}: {ex.Message}");
-            }
-        }
-
-        // Sort test runs by start time descending
-        _cachedTestRuns = _cachedTestRuns.OrderByDescending(r => r.StartTime).ToList();
-        _cachedResults = _cachedResults.OrderByDescending(r => r.Timestamp).ToList();
-    }
-
     private DateTime UnixTimeStampToDateTime(long milliseconds)
     {
         var dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
         dateTime = dateTime.AddMilliseconds(milliseconds).ToLocalTime();
         return dateTime;
-    }
-
-    private bool IsHookTestContent(string? name)
-    {
-        if (string.IsNullOrEmpty(name))
-            return false;
-        
-        return name.Contains("PlaywrightHooks") ||
-               name.Contains("BeforeScenarioAsync") ||
-               name.Contains("AfterScenarioAsync") ||
-               name.Contains("BeforeEachAsync") ||
-               name.Contains("AfterEachAsync") ||
-               name.Contains("Default") && (name.Contains("Before") || name.Contains("After"));
-    }
-
-    private bool IsContainerJsonWithHooks(string content)
-    {
-        try
-        {
-            // Check if this is a container JSON file with children and hooks
-            var json = JObject.Parse(content);
-            
-            // Look for the container pattern: has children array and befores/afters with hooks
-            if (json.ContainsKey("children") && 
-                (json.ContainsKey("befores") || json.ContainsKey("afters")))
-            {
-                var children = json["children"];
-                var befores = json["befores"];
-                var afters = json["afters"];
-                
-                // If it has children and hooks (befores/afters), it's a container file - skip it
-                if (children != null && children.Type == JTokenType.Array && children.Count() > 0)
-                {
-                    if ((befores != null && befores.Type == JTokenType.Array && befores.Count() > 0) ||
-                        (afters != null && afters.Type == JTokenType.Array && afters.Count() > 0))
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-        catch
-        {
-            // If parsing fails, continue with normal processing
-        }
-        
-        return false;
-    }
-
-    private List<TestResult> ParseTestResults(string content, string sourceFile)
-    {
-        var results = new List<TestResult>();
-        
-        try
-        {
-            // Skip container JSON files with children and hooks
-            if (IsContainerJsonWithHooks(content))
-            {
-                _logger.LogInformation($"Skipping container JSON file: {sourceFile}");
-                return results;
-            }
-
-            // Try parsing as an array first
-            if (content.TrimStart().StartsWith("["))
-            {
-                var reports = JsonConvert.DeserializeObject<List<TestReport>>(content);
-                if (reports != null)
-                {
-                    foreach (var report in reports)
-                    {
-                        // Skip hook tests at parsing level
-                        if (IsHookTestContent(report.Name))
-                            continue;
-                        
-                        var result = ConvertReportToResult(report, sourceFile);
-                        if (result != null)
-                            results.Add(result);
-                    }
-                    return results;
-                }
-            }
-            else
-            {
-                // Parse as single object
-                var report = JsonConvert.DeserializeObject<TestReport>(content);
-                if (report != null && !IsHookTestContent(report.Name))
-                {
-                    var result = ConvertReportToResult(report, sourceFile);
-                    if (result != null)
-                        results.Add(result);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning($"Error parsing JSON content: {ex.Message}");
-        }
-        
-        return results;
-    }
-
-    private TestResult? ConvertReportToResult(TestReport report, string sourceFile)
-    {
-        if (report == null || string.IsNullOrEmpty(report.Uuid))
-            return null;
-
-        // Additional filter - skip hook tests (should already be filtered at parsing level)
-        if (IsHookTestContent(report.Name))
-        {
-            return null;
-        }
-
-        var timestamp = UnixTimeStampToDateTime(report.Start);
-        var duration = report.Stop - report.Start;
-        
-        // Process attachments to include full relative paths
-        var attachments = report.Attachments != null ? report.Attachments.Select(att => new Attachment
-        {
-            Name = att.Name,
-            Type = att.Type,
-            Source = att.Source != null ? $"data/test-results/{att.Source}" : att.Source
-        }).ToList() : null;
-
-        return new TestResult
-        {
-            Id = report.Uuid,
-            Name = report.Name,
-            HistoryId = report.HistoryId,
-            Status = report.Status?.ToUpper() ?? "UNKNOWN",
-            Project = ExtractProjectName(report),
-            Tags = ExtractTags(report),
-            Timestamp = timestamp,
-            Duration = duration,
-            Source = sourceFile,
-            Steps = report.Steps,
-            Attachments = attachments
-        };
-    }
-
-    private string ExtractProjectName(TestReport report)
-    {
-        // Try to extract from titlePath first (most reliable)
-        if (report.TitlePath != null && report.TitlePath.Count > 0)
-        {
-            return report.TitlePath[0];
-        }
-
-        // Fall back to extracting from full name
-        if (!string.IsNullOrEmpty(report.FullName))
-        {
-            var parts = report.FullName.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
-            return parts.Length > 0 ? parts[0] : "Default";
-        }
-
-        return "Default";
-    }
-
-    private List<string> ExtractTags(TestReport report)
-    {
-        var tags = new List<string>();
-        
-        if (report.Labels != null)
-        {
-            foreach (var label in report.Labels)
-            {
-                // Look for labels with name "tag"
-                if (label.Name == "tag" && !string.IsNullOrEmpty(label.Value))
-                {
-                    if (!tags.Contains(label.Value))
-                        tags.Add(label.Value);
-                }
-            }
-        }
-
-        return tags;
     }
 
     public async Task<List<TestResult>> GetTestResultsAsync(FilterRequest? filter = null)

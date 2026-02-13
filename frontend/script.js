@@ -78,6 +78,9 @@ async function init() {
                 }
             }
         });
+
+        // Update last updated timestamp
+        updateLastUpdatedTime();
     } catch (error) {
         console.error('Initialization error:', error);
         showError('Failed to initialize dashboard');
@@ -252,14 +255,50 @@ function clearFilters() {
 }
 
 async function refreshData() {
+    const refreshBtn = document.getElementById('refreshBtn');
     try {
-        await fetch(`${API_BASE_URL}/refresh`, { method: 'POST' });
+        // Show loading state
+        refreshBtn.disabled = true;
+        refreshBtn.innerHTML = '⟳ Refreshing...';
+        showLoadingSpinner(true);
+
+        // Call refresh endpoint
+        const response = await fetch(`${API_BASE_URL}/refresh`, { method: 'POST' });
+        if (!response.ok) throw new Error('Refresh request failed');
+
+        // Reload all data
+        await loadProjects();
+        await loadTags();
         await loadDashboard();
         await loadTestCasesByTime();
+        
+        // Update last updated time
+        updateLastUpdatedTime();
+        
         showSuccess('Data refreshed successfully');
     } catch (error) {
         console.error('Error refreshing data:', error);
         showError('Failed to refresh data');
+    } finally {
+        // Restore button state
+        refreshBtn.disabled = false;
+        refreshBtn.innerHTML = 'Refresh';
+        showLoadingSpinner(false);
+    }
+}
+
+function updateLastUpdatedTime() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('lastUpdate').textContent = `Last updated: ${hours}:${minutes}:${seconds}`;
+}
+
+function showLoadingSpinner(show) {
+    const spinner = document.getElementById('loadingSpinner');
+    if (spinner) {
+        spinner.style.display = show ? 'block' : 'none';
     }
 }
 
