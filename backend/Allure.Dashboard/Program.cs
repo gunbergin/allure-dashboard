@@ -42,4 +42,8 @@ app.MapFallbackToFile("index.html", new StaticFileOptions
 var fileWatcher = app.Services.GetRequiredService<IFileWatcherService>();
 fileWatcher.StartWatching(builder.Configuration["AllureReportsPath"] ?? "../../allure-reports");
 
+// Initialize data on startup
+var allureService = app.Services.GetRequiredService<IAllureService>();
+await allureService.RefreshDataAsync();
+
 app.Run();
