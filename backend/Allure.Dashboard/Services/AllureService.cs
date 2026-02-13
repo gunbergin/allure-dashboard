@@ -8,15 +8,19 @@ public class AllureService : IAllureService
 {
     private readonly ILogger<AllureService> _logger;
     private readonly string _reportsPath;
+    private readonly IOracleDataService _oracleDataService;
     private List<TestRun> _cachedTestRuns = new();
     private List<TestResult> _cachedResults = new();
     private List<string> _projects = new();
     private List<string> _tags = new();
+    private bool _useOracleDatabase;
 
-    public AllureService(ILogger<AllureService> logger, IConfiguration configuration)
+    public AllureService(ILogger<AllureService> logger, IConfiguration configuration, IOracleDataService oracleDataService)
     {
         _logger = logger;
         _reportsPath = configuration["AllureReportsPath"] ?? "./allure-reports";
+        _oracleDataService = oracleDataService;
+        _useOracleDatabase = configuration["Database:Provider"] == "Oracle";
     }
 
     public async Task RefreshDataAsync()
@@ -28,21 +32,28 @@ public class AllureService : IAllureService
             _projects.Clear();
             _tags.Clear();
 
-            // Check if reports directory exists
-            if (!Directory.Exists(_reportsPath))
+            if (_useOracleDatabase)
             {
-                _logger.LogWarning($"Reports path not found: {_reportsPath}");
-                return;
+                await LoadFromOracleDatabaseAsync();
+            }
+            else
+            {
+                // Fallback to JSON file reading
+                if (!Directory.Exists(_reportsPath))
+                {
+                    _logger.LogWarning($"Reports path not found: {_reportsPath}");
+                    return;
+                }
+
+                var resultsDir = Path.Combine(_reportsPath, "data", "test-results");
+                
+                if (Directory.Exists(resultsDir))
+                {
+                    await LoadTestRunsAsync(resultsDir);
+                }
             }
 
-            var resultsDir = Path.Combine(_reportsPath, "data", "test-results");
-            
-            if (Directory.Exists(resultsDir))
-            {
-                await LoadTestRunsAsync(resultsDir);
-            }
-
-            _logger.LogInformation($"Loaded {_cachedTestRuns.Count} test runs with {_cachedResults.Count} test results");
+            _logger.LogInformation($"Loaded {_cachedTestRuns.Count} test runs with {_cachedResults.Count} test results from {(_useOracleDatabase ? "Oracle Database" : "JSON Files")}");
         }
         catch (Exception ex)
         {
@@ -50,9 +61,119 @@ public class AllureService : IAllureService
         }
     }
 
+    private async Task LoadFromOracleDatabaseAsync()
+    {
+        try
+        {
+            // Get all Allure results from Oracle
+            var allureResults = await _oracleDataService.GetAllureResultsAsync();
+            
+            if (allureResults.Count == 0)
+            {
+                _logger.LogWarning("No Allure results found in Oracle database");
+                return;
+            }
+
+            // Convert Oracle models to TestResult
+            foreach (var oracleResult in allureResults)
+            {
+                var testResult = ConvertOracleResultToTestResult(oracleResult);
+                if (testResult != null)
+                {
+                    _cachedResults.Add(testResult);
+                    
+                    // Extract projects and tags
+                    if (!string.IsNullOrEmpty(testResult.Project) && !_projects.Contains(testResult.Project))
+                        _projects.Add(testResult.Project);
+
+                    if (testResult.Tags != null)
+                    {
+                        foreach (var tag in testResult.Tags)
+                        {
+                            if (!_tags.Contains(tag))
+                                _tags.Add(tag);
+                        }
+                    }
+                }
+            }
+
+            // Create test runs from results grouped by date
+            var resultsByDate = _cachedResults.GroupBy(r => r.Timestamp.Date);
+            foreach (var dateGroup in resultsByDate)
+            {
+                var results = dateGroup.ToList();
+                var startTime = results.Min(r => r.Timestamp);
+                var endTime = results.Max(r => r.Timestamp.AddMilliseconds(r.Duration));
+                
+                var testRun = new TestRun
+                {
+                    Id = dateGroup.Key.ToString("yyyy-MM-dd"),
+                    Name = $"Test Run - {dateGroup.Key:yyyy-MM-dd}",
+                    StartTime = startTime,
+                    EndTime = endTime,
+                    Results = results,
+                    PassedCount = results.Count(r => r.Status == "PASSED"),
+                    FailedCount = results.Count(r => r.Status == "FAILED"),
+                    SkippedCount = results.Count(r => r.Status == "SKIPPED"),
+                    BrokenCount = results.Count(r => r.Status == "BROKEN")
+                };
+                
+                testRun.PassRate = testRun.PassedCount > 0 ? 
+                    (double)testRun.PassedCount / results.Count * 100 : 0;
+                
+                _cachedTestRuns.Add(testRun);
+            }
+
+            _cachedTestRuns = _cachedTestRuns.OrderByDescending(r => r.StartTime).ToList();
+            _cachedResults = _cachedResults.OrderByDescending(r => r.Timestamp).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error loading data from Oracle database: {ex.Message}");
+        }
+    }
+
+    private TestResult? ConvertOracleResultToTestResult(OracleAllureResult oracleResult)
+    {
+        try
+        {
+            var timestamp = UnixTimeStampToDateTime(oracleResult.StartTime);
+            var duration = oracleResult.EndTime - oracleResult.StartTime;
+
+            // Parse labels/tags from comma-separated string
+            var tags = new List<string>();
+            if (!string.IsNullOrEmpty(oracleResult.Labels))
+            {
+                tags = oracleResult.Labels.Split(',')
+                    .Select(t => t.Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+            }
+
+            return new TestResult
+            {
+                Id = oracleResult.Uuid,
+                Name = oracleResult.Name,
+                HistoryId = oracleResult.HistoryId,
+                Status = oracleResult.Status?.ToUpper() ?? "UNKNOWN",
+                Project = oracleResult.Feature ?? "Default",
+                Tags = tags.Count > 0 ? tags : null,
+                Timestamp = timestamp,
+                Duration = duration,
+                Source = oracleResult.Uuid,
+                Steps = null, // Will be loaded separately if needed
+                Attachments = null // Will be loaded separately if needed
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error converting Oracle result: {ex.Message}");
+            return null;
+        }
+    }
+
     private async Task LoadTestRunsAsync(string resultsDir)
     {
-
         // Load all JSON files from results directory
         var jsonFiles = Directory.GetFiles(resultsDir, "*.json", SearchOption.TopDirectoryOnly);
         
@@ -115,6 +236,13 @@ public class AllureService : IAllureService
         // Sort test runs by start time descending
         _cachedTestRuns = _cachedTestRuns.OrderByDescending(r => r.StartTime).ToList();
         _cachedResults = _cachedResults.OrderByDescending(r => r.Timestamp).ToList();
+    }
+
+    private DateTime UnixTimeStampToDateTime(long milliseconds)
+    {
+        var dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+        dateTime = dateTime.AddMilliseconds(milliseconds).ToLocalTime();
+        return dateTime;
     }
 
     private bool IsHookTestContent(string? name)
@@ -252,13 +380,6 @@ public class AllureService : IAllureService
             Steps = report.Steps,
             Attachments = attachments
         };
-    }
-
-    private DateTime UnixTimeStampToDateTime(long milliseconds)
-    {
-        var dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-        dateTime = dateTime.AddMilliseconds(milliseconds).ToLocalTime();
-        return dateTime;
     }
 
     private string ExtractProjectName(TestReport report)

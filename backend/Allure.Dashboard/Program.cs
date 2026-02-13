@@ -14,6 +14,7 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddSingleton<IOracleDataService, OracleDataService>();
 builder.Services.AddSingleton<IAllureService, AllureService>();
 builder.Services.AddSingleton<IFileWatcherService, FileWatcherService>();
 
