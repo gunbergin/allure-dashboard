@@ -607,7 +607,7 @@ function renderSteps(steps) {
         return;
     }
     
-    container.innerHTML = steps.map(step => `
+    container.innerHTML = steps.map((step, index) => `
         <div class="step">
             <div class="step-name">${escapeHtml(step.name || 'Unknown Step')}</div>
             <div class="step-status">
@@ -616,6 +616,14 @@ function renderSteps(steps) {
                 </span>
                 ${step.stop && step.start ? `<span class="step-duration">${step.stop - step.start}ms</span>` : ''}
             </div>
+            ${step.screenshotData ? `
+                <div class="screenshot-section">
+                    <h5 style="margin: 10px 0 8px 0; font-size: 12px; color: #666;">Screenshot</h5>
+                    <div class="screenshot-thumbnail" onclick="openImageLightboxFromBase64('data:image/png;base64,${step.screenshotData}', 'Step ${index + 1} Screenshot')" style="cursor: pointer;">
+                        <img src="data:image/png;base64,${step.screenshotData}" alt="Step ${index + 1} Screenshot" style="cursor: pointer; max-width: 100%; height: auto; border-radius: 4px;">
+                    </div>
+                </div>
+            ` : ''}
             ${step.attachments && step.attachments.length > 0 ? `
                 <div class="attachments-section">
                     <h5 style="margin: 10px 0 8px 0; font-size: 12px; color: #666;">Attachments</h5>
@@ -668,6 +676,13 @@ function openImageLightbox(imageUrl, fileName) {
 function closeImageLightbox() {
     document.getElementById('imageLightbox').style.display = 'none';
     document.body.style.overflow = 'auto';
+}
+
+function openImageLightboxFromBase64(base64Data, fileName) {
+    document.getElementById('lightboxImage').src = base64Data;
+    document.getElementById('lightboxFileName').textContent = fileName;
+    document.getElementById('imageLightbox').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
 }
 
 function updateCharts(data) {

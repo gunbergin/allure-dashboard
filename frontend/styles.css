@@ -896,6 +896,42 @@ header h1 {
     font-weight: 600;
 }
 
+.screenshot-section {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 2px solid #e5e7eb;
+}
+
+.screenshot-section h5 {
+    color: #1f2937;
+    margin-bottom: 15px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.screenshot-thumbnail {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f9fafb;
+    padding: 8px;
+    display: inline-block;
+    max-width: 100%;
+    transition: all 0.2s ease;
+}
+
+.screenshot-thumbnail:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: scale(1.02);
+}
+
+.screenshot-thumbnail img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 4px;
+}
+
 .attachment-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
