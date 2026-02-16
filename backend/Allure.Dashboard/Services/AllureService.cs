@@ -233,6 +233,12 @@ public class AllureService : IAllureService
 
     private Step ConvertOracleStepToStep(OracleAllureStep oracleStep)
     {
+        string? screenshotData = null;
+        if (oracleStep.ScreenshotBlob != null && oracleStep.ScreenshotBlob.Length > 0)
+        {
+            screenshotData = Convert.ToBase64String(oracleStep.ScreenshotBlob);
+        }
+
         return new Step
         {
             Name = oracleStep.Name,
@@ -243,7 +249,7 @@ public class AllureService : IAllureService
             Steps = null, // Nested steps not currently supported
             Attachments = null, // Attachments loaded separately if needed
             Parameters = null,
-            ScreenshotPath = oracleStep.ScreenshotPath
+            ScreenshotData = screenshotData
         };
     }
 

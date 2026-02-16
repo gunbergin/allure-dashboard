@@ -79,8 +79,8 @@ public class Step
     [JsonProperty("parameters")]
     public List<object>? Parameters { get; set; }
     
-    [JsonProperty("screenshotPath")]
-    public string? ScreenshotPath { get; set; }
+    [JsonProperty("screenshotData")]
+    public string? ScreenshotData { get; set; }
 }
 
 public class TestReport

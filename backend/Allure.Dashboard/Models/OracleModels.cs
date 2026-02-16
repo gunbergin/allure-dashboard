@@ -3,13 +3,31 @@ namespace Allure.Dashboard.Models;
 /// <summary>
 /// Oracle Database Models for Nova Test Scenarios Execution Data
 /// </summary>
-/// 
+
+/// <summary>
+/// Represents a test run from TEST_RUNS table
+/// </summary>
+public class OracleTestRun
+{
+    public long Id { get; set; }
+    public string? RunId { get; set; }
+    public DateTime StartTime { get; set; }
+    public DateTime? EndTime { get; set; }
+    public string? Status { get; set; }
+    public long TotalScenarios { get; set; }
+    public long PassedScenarios { get; set; }
+    public long FailedScenarios { get; set; }
+    public long SkippedScenarios { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
 /// <summary>
 /// Represents a test scenario from TEST_SCENARIOS table
 /// </summary>
 public class OracleTestScenario
 {
     public long Id { get; set; }
+    public string? RunId { get; set; }
     public string? ScenarioName { get; set; }
     public string? FeatureName { get; set; }
     public string? Tags { get; set; }
@@ -34,6 +52,7 @@ public class OracleTestScenario
 public class OracleAllureResult
 {
     public long Id { get; set; }
+    public string? RunId { get; set; }
     public string? Uuid { get; set; }
     public string? HistoryId { get; set; }
     public string? TestCaseId { get; set; }
@@ -72,6 +91,6 @@ public class OracleAllureStep
     public string? Trace { get; set; }
     public int AttachmentsCount { get; set; }
     public int NestedStepsCount { get; set; }
-    public string? ScreenshotPath { get; set; }
+    public byte[]? ScreenshotBlob { get; set; }
     public DateTime CreatedAt { get; set; }
 }

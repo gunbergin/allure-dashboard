@@ -30,7 +30,7 @@ public class OracleDataService : IOracleDataService
     {
         var results = new List<OracleAllureResult>();
         var query = @"
-            SELECT ID, UUID, HISTORY_ID, TEST_CASE_ID, FULL_NAME, NAME, STATUS, 
+            SELECT ID, RUN_ID, UUID, HISTORY_ID, TEST_CASE_ID, FULL_NAME, NAME, STATUS, 
                    DURATION_MS, FEATURE, ERROR_MESSAGE, STACK_TRACE, LABELS, 
                    STEPS_COUNT, ATTACHMENTS_COUNT, KNOWN, MUTED, FLAKY, 
                    START_TIME, END_TIME, CREATED_AT
@@ -67,7 +67,7 @@ public class OracleDataService : IOracleDataService
     {
         var results = new List<OracleAllureResult>();
         var query = @"
-            SELECT ID, UUID, HISTORY_ID, TEST_CASE_ID, FULL_NAME, NAME, STATUS, 
+            SELECT ID, RUN_ID, UUID, HISTORY_ID, TEST_CASE_ID, FULL_NAME, NAME, STATUS, 
                    DURATION_MS, FEATURE, ERROR_MESSAGE, STACK_TRACE, LABELS, 
                    STEPS_COUNT, ATTACHMENTS_COUNT, KNOWN, MUTED, FLAKY, 
                    START_TIME, END_TIME, CREATED_AT
@@ -145,7 +145,7 @@ public class OracleDataService : IOracleDataService
         var query = @"
             SELECT ID, ALLURE_RESULT_ID, NAME, STATUS, START_TIME, END_TIME, 
                    DURATION_MS, STAGE, MESSAGE, TRACE, ATTACHMENTS_COUNT, 
-                   NESTED_STEPS_COUNT, SCREENSHOT_PATH, CREATED_AT
+                   NESTED_STEPS_COUNT, SCREENSHOT_BLOB, CREATED_AT
             FROM ALLURE_STEPS
             WHERE ALLURE_RESULT_ID = :resultId
             ORDER BY START_TIME ASC";
@@ -329,30 +329,44 @@ public class OracleDataService : IOracleDataService
         return new OracleAllureResult
         {
             Id = reader.GetInt64(0),
-            Uuid = reader.IsDBNull(1) ? null : reader.GetString(1),
-            HistoryId = reader.IsDBNull(2) ? null : reader.GetString(2),
-            TestCaseId = reader.IsDBNull(3) ? null : reader.GetString(3),
-            FullName = reader.IsDBNull(4) ? null : reader.GetString(4),
-            Name = reader.IsDBNull(5) ? null : reader.GetString(5),
-            Status = reader.IsDBNull(6) ? null : reader.GetString(6),
-            DurationMs = reader.IsDBNull(7) ? null : reader.GetInt64(7),
-            Feature = reader.IsDBNull(8) ? null : reader.GetString(8),
-            ErrorMessage = reader.IsDBNull(9) ? null : reader.GetString(9),
-            StackTrace = reader.IsDBNull(10) ? null : reader.GetString(10),
-            Labels = reader.IsDBNull(11) ? null : reader.GetString(11),
-            StepsCount = reader.IsDBNull(12) ? 0 : (int)reader.GetInt64(12),
-            AttachmentsCount = reader.IsDBNull(13) ? 0 : (int)reader.GetInt64(13),
-            Known = !reader.IsDBNull(14) && reader.GetInt64(14) == 1,
-            Muted = !reader.IsDBNull(15) && reader.GetInt64(15) == 1,
-            Flaky = !reader.IsDBNull(16) && reader.GetInt64(16) == 1,
-            StartTime = reader.GetInt64(17),
-            EndTime = reader.GetInt64(18),
-            CreatedAt = reader.IsDBNull(19) ? DateTime.Now : reader.GetDateTime(19)
+            RunId = reader.IsDBNull(1) ? null : reader.GetString(1),
+            Uuid = reader.IsDBNull(2) ? null : reader.GetString(2),
+            HistoryId = reader.IsDBNull(3) ? null : reader.GetString(3),
+            TestCaseId = reader.IsDBNull(4) ? null : reader.GetString(4),
+            FullName = reader.IsDBNull(5) ? null : reader.GetString(5),
+            Name = reader.IsDBNull(6) ? null : reader.GetString(6),
+            Status = reader.IsDBNull(7) ? null : reader.GetString(7),
+            DurationMs = reader.IsDBNull(8) ? null : reader.GetInt64(8),
+            Feature = reader.IsDBNull(9) ? null : reader.GetString(9),
+            ErrorMessage = reader.IsDBNull(10) ? null : reader.GetString(10),
+            StackTrace = reader.IsDBNull(11) ? null : reader.GetString(11),
+            Labels = reader.IsDBNull(12) ? null : reader.GetString(12),
+            StepsCount = reader.IsDBNull(13) ? 0 : (int)reader.GetInt64(13),
+            AttachmentsCount = reader.IsDBNull(14) ? 0 : (int)reader.GetInt64(14),
+            Known = !reader.IsDBNull(15) && reader.GetInt64(15) == 1,
+            Muted = !reader.IsDBNull(16) && reader.GetInt64(16) == 1,
+            Flaky = !reader.IsDBNull(17) && reader.GetInt64(17) == 1,
+            StartTime = reader.GetInt64(18),
+            EndTime = reader.GetInt64(19),
+            CreatedAt = reader.IsDBNull(20) ? DateTime.Now : reader.GetDateTime(20)
         };
     }
 
     private OracleAllureStep MapReaderToAllureStep(OracleDataReader reader)
     {
+        byte[]? screenshotBlob = null;
+        if (!reader.IsDBNull(12))
+        {
+            try
+            {
+                screenshotBlob = (byte[])reader.GetValue(12);
+            }
+            catch
+            {
+                screenshotBlob = null;
+            }
+        }
+
         return new OracleAllureStep
         {
             Id = reader.GetInt64(0),
@@ -367,7 +381,7 @@ public class OracleDataService : IOracleDataService
             Trace = reader.IsDBNull(9) ? null : reader.GetString(9),
             AttachmentsCount = reader.IsDBNull(10) ? 0 : (int)reader.GetInt64(10),
             NestedStepsCount = reader.IsDBNull(11) ? 0 : (int)reader.GetInt64(11),
-            ScreenshotPath = reader.IsDBNull(12) ? null : reader.GetString(12),
+            ScreenshotBlob = screenshotBlob,
             CreatedAt = reader.IsDBNull(13) ? DateTime.Now : reader.GetDateTime(13)
         };
     }
