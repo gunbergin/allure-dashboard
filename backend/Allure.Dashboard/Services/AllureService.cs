@@ -109,10 +109,10 @@ public class AllureService : IAllureService
                     StartTime = startTime,
                     EndTime = endTime,
                     Results = results,
-                    PassedCount = results.Count(r => string.Equals(r.Status, "PASSED", StringComparison.OrdinalIgnoreCase)),
-                    FailedCount = results.Count(r => string.Equals(r.Status, "FAILED", StringComparison.OrdinalIgnoreCase)),
-                    SkippedCount = results.Count(r => string.Equals(r.Status, "SKIPPED", StringComparison.OrdinalIgnoreCase)),
-                    BrokenCount = results.Count(r => string.Equals(r.Status, "BROKEN", StringComparison.OrdinalIgnoreCase))
+                    PassedCount = results.Count(r => string.Equals(r.Status, "PASSED", StringComparison.CurrentCultureIgnoreCase)),
+                    FailedCount = results.Count(r => string.Equals(r.Status, "FAILED", StringComparison.CurrentCultureIgnoreCase)),
+                    SkippedCount = results.Count(r => string.Equals(r.Status, "SKIPPED", StringComparison.CurrentCultureIgnoreCase)),
+                    BrokenCount = results.Count(r => string.Equals(r.Status, "BROKEN", StringComparison.CurrentCultureIgnoreCase))
                 };
                 
                 testRun.PassRate = testRun.PassedCount > 0 ? 
@@ -273,7 +273,7 @@ public class AllureService : IAllureService
                 results = results.Where(r => r.Timestamp <= filter.EndDate.Value);
 
             if (!string.IsNullOrEmpty(filter.Status))
-                results = results.Where(r => !string.IsNullOrEmpty(r.Status) && r.Status.Equals(filter.Status, StringComparison.OrdinalIgnoreCase));
+                results = results.Where(r => !string.IsNullOrEmpty(r.Status) && r.Status.Equals(filter.Status, StringComparison.CurrentCultureIgnoreCase));
         }
 
         return await Task.FromResult(results.ToList());
@@ -298,7 +298,7 @@ public class AllureService : IAllureService
                 testRuns = testRuns.Where(r => r.EndTime <= filter.EndDate.Value);
 
             if (!string.IsNullOrEmpty(filter.Status))
-                testRuns = testRuns.Where(r => r.Results?.Any(t => !string.IsNullOrEmpty(t.Status) && t.Status.Equals(filter.Status, StringComparison.OrdinalIgnoreCase)) ?? false);
+                testRuns = testRuns.Where(r => r.Results?.Any(t => !string.IsNullOrEmpty(t.Status) && t.Status.Equals(filter.Status, StringComparison.CurrentCultureIgnoreCase)) ?? false);
         }
 
         return await Task.FromResult(testRuns.ToList());
@@ -309,7 +309,7 @@ public class AllureService : IAllureService
         var results = await GetTestResultsAsync(filter);
         var testRuns = await GetTestRunsAsync(filter);
 
-        var passed = results.Count(r => string.Equals(r.Status, "PASSED", StringComparison.OrdinalIgnoreCase));
+        var passed = results.Count(r => string.Equals(r.Status, "PASSED", StringComparison.CurrentCultureIgnoreCase));
         var total = results.Count;
         var passRate = total > 0 ? (double)passed / total * 100 : 0;
 
@@ -319,10 +319,10 @@ public class AllureService : IAllureService
             Results = results,
             StatusCounts = new Dictionary<string, int>
             {
-                { "PASSED", results.Count(r => string.Equals(r.Status, "PASSED", StringComparison.OrdinalIgnoreCase)) },
-                { "FAILED", results.Count(r => string.Equals(r.Status, "FAILED", StringComparison.OrdinalIgnoreCase)) },
-                { "SKIPPED", results.Count(r => string.Equals(r.Status, "SKIPPED", StringComparison.OrdinalIgnoreCase)) },
-                { "BROKEN", results.Count(r => string.Equals(r.Status, "BROKEN", StringComparison.OrdinalIgnoreCase)) }
+                { "PASSED", results.Count(r => string.Equals(r.Status, "PASSED", StringComparison.CurrentCultureIgnoreCase)) },
+                { "FAILED", results.Count(r => string.Equals(r.Status, "FAILED", StringComparison.CurrentCultureIgnoreCase)) },
+                { "SKIPPED", results.Count(r => string.Equals(r.Status, "SKIPPED", StringComparison.CurrentCultureIgnoreCase)) },
+                { "BROKEN", results.Count(r => string.Equals(r.Status, "BROKEN", StringComparison.CurrentCultureIgnoreCase)) }
             },
             Projects = _projects,
             AvailableTags = _tags,
@@ -361,7 +361,7 @@ public class AllureService : IAllureService
                 filteredResults = filteredResults.Where(r => r.Timestamp <= filter.EndDate.Value);
 
             if (!string.IsNullOrEmpty(filter.Status))
-                filteredResults = filteredResults.Where(r => !string.IsNullOrEmpty(r.Status) && r.Status.Equals(filter.Status, StringComparison.OrdinalIgnoreCase));
+                filteredResults = filteredResults.Where(r => !string.IsNullOrEmpty(r.Status) && r.Status.Equals(filter.Status, StringComparison.CurrentCultureIgnoreCase));
         }
 
         var groupedByTime = new Dictionary<string, List<TestResult>>();
@@ -386,11 +386,11 @@ public class AllureService : IAllureService
             TimeGroup = g.Key,
             GroupTime = DateTime.ParseExact(g.Key, "yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture),
             TestCases = g.Value,
-            PassedCount = g.Value.Count(t => string.Equals(t.Status, "PASSED", StringComparison.OrdinalIgnoreCase)),
-            FailedCount = g.Value.Count(t => string.Equals(t.Status, "FAILED", StringComparison.OrdinalIgnoreCase)),
-            SkippedCount = g.Value.Count(t => string.Equals(t.Status, "SKIPPED", StringComparison.OrdinalIgnoreCase)),
-            BrokenCount = g.Value.Count(t => string.Equals(t.Status, "BROKEN", StringComparison.OrdinalIgnoreCase)),
-            PassRate = g.Value.Count > 0 ? (double)g.Value.Count(t => string.Equals(t.Status, "PASSED", StringComparison.OrdinalIgnoreCase)) / g.Value.Count * 100 : 0
+            PassedCount = g.Value.Count(t => string.Equals(t.Status, "PASSED", StringComparison.CurrentCultureIgnoreCase)),
+            FailedCount = g.Value.Count(t => string.Equals(t.Status, "FAILED", StringComparison.CurrentCultureIgnoreCase)),
+            SkippedCount = g.Value.Count(t => string.Equals(t.Status, "SKIPPED", StringComparison.CurrentCultureIgnoreCase)),
+            BrokenCount = g.Value.Count(t => string.Equals(t.Status, "BROKEN", StringComparison.CurrentCultureIgnoreCase)),
+            PassRate = g.Value.Count > 0 ? (double)g.Value.Count(t => string.Equals(t.Status, "PASSED", StringComparison.CurrentCultureIgnoreCase)) / g.Value.Count * 100 : 0
         }).OrderByDescending(x => x.GroupTime).ToList();
 
         return await Task.FromResult(result_list);
