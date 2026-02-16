@@ -145,7 +145,9 @@ public class AllureService : IAllureService
                 Id = oracleResult.Uuid,
                 Name = oracleResult.Name,
                 HistoryId = oracleResult.HistoryId,
-                Status = oracleResult.Status?.ToUpper() ?? "UNKNOWN",
+                Status = oracleResult.Status?
+    .ToUpperInvariant()      // veya ToUpper(CultureInfo.InvariantCulture)
+    ?? "UNKNOWN",
                 Project = oracleResult.Feature ?? "Default",
                 Tags = tags.Count > 0 ? tags : null,
                 Timestamp = timestamp,
