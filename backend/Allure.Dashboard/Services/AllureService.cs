@@ -309,7 +309,7 @@ public class AllureService : IAllureService
         var results = await GetTestResultsAsync(filter);
         var testRuns = await GetTestRunsAsync(filter);
 
-        var passed = results.Count(r => r.Status == "PASSED");
+        var passed = results.Count(r => string.Equals(r.Status, "PASSED", StringComparison.OrdinalIgnoreCase));
         var total = results.Count;
         var passRate = total > 0 ? (double)passed / total * 100 : 0;
 
@@ -319,10 +319,10 @@ public class AllureService : IAllureService
             Results = results,
             StatusCounts = new Dictionary<string, int>
             {
-                { "PASSED", results.Count(r => r.Status == "PASSED") },
-                { "FAILED", results.Count(r => r.Status == "FAILED") },
-                { "SKIPPED", results.Count(r => r.Status == "SKIPPED") },
-                { "BROKEN", results.Count(r => r.Status == "BROKEN") }
+                { "PASSED", results.Count(r => string.Equals(r.Status, "PASSED", StringComparison.OrdinalIgnoreCase)) },
+                { "FAILED", results.Count(r => string.Equals(r.Status, "FAILED", StringComparison.OrdinalIgnoreCase)) },
+                { "SKIPPED", results.Count(r => string.Equals(r.Status, "SKIPPED", StringComparison.OrdinalIgnoreCase)) },
+                { "BROKEN", results.Count(r => string.Equals(r.Status, "BROKEN", StringComparison.OrdinalIgnoreCase)) }
             },
             Projects = _projects,
             AvailableTags = _tags,
