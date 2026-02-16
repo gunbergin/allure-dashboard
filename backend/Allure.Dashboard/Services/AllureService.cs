@@ -109,10 +109,10 @@ public class AllureService : IAllureService
                     StartTime = startTime,
                     EndTime = endTime,
                     Results = results,
-                    PassedCount = results.Count(r => r.Status == "PASSED"),
-                    FailedCount = results.Count(r => r.Status == "FAILED"),
-                    SkippedCount = results.Count(r => r.Status == "SKIPPED"),
-                    BrokenCount = results.Count(r => r.Status == "BROKEN")
+                    PassedCount = results.Count(r => string.Equals(r.Status, "PASSED", StringComparison.OrdinalIgnoreCase)),
+                    FailedCount = results.Count(r => string.Equals(r.Status, "FAILED", StringComparison.OrdinalIgnoreCase)),
+                    SkippedCount = results.Count(r => string.Equals(r.Status, "SKIPPED", StringComparison.OrdinalIgnoreCase)),
+                    BrokenCount = results.Count(r => string.Equals(r.Status, "BROKEN", StringComparison.OrdinalIgnoreCase))
                 };
                 
                 testRun.PassRate = testRun.PassedCount > 0 ? 
@@ -386,11 +386,11 @@ public class AllureService : IAllureService
             TimeGroup = g.Key,
             GroupTime = DateTime.ParseExact(g.Key, "yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture),
             TestCases = g.Value,
-            PassedCount = g.Value.Count(t => t.Status == "PASSED"),
-            FailedCount = g.Value.Count(t => t.Status == "FAILED"),
-            SkippedCount = g.Value.Count(t => t.Status == "SKIPPED"),
-            BrokenCount = g.Value.Count(t => t.Status == "BROKEN"),
-            PassRate = g.Value.Count > 0 ? (double)g.Value.Count(t => t.Status == "PASSED") / g.Value.Count * 100 : 0
+            PassedCount = g.Value.Count(t => string.Equals(t.Status, "PASSED", StringComparison.OrdinalIgnoreCase)),
+            FailedCount = g.Value.Count(t => string.Equals(t.Status, "FAILED", StringComparison.OrdinalIgnoreCase)),
+            SkippedCount = g.Value.Count(t => string.Equals(t.Status, "SKIPPED", StringComparison.OrdinalIgnoreCase)),
+            BrokenCount = g.Value.Count(t => string.Equals(t.Status, "BROKEN", StringComparison.OrdinalIgnoreCase)),
+            PassRate = g.Value.Count > 0 ? (double)g.Value.Count(t => string.Equals(t.Status, "PASSED", StringComparison.OrdinalIgnoreCase)) / g.Value.Count * 100 : 0
         }).OrderByDescending(x => x.GroupTime).ToList();
 
         return await Task.FromResult(result_list);
