@@ -676,7 +676,12 @@ function updateCharts(data) {
     if (data.testRuns && Array.isArray(data.testRuns)) {
         data.testRuns.forEach(run => {
             const date = new Date(run.startTime);
-            const dateStr = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+            // Format as MM/DD/YYYY for consistent sorting
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const year = date.getFullYear();
+            const dateStr = `${month}/${day}/${year}`;
+            
             if (!dailyTotals[dateStr]) {
                 dailyTotals[dateStr] = {
                     total: 0,
@@ -686,7 +691,8 @@ function updateCharts(data) {
                     broken: 0
                 };
             }
-            const testCount = (run.results && run.results.length) || 0;
+            // Use the counts from the testRun object, not from results.length
+            const testCount = (run.passedCount || 0) + (run.failedCount || 0) + (run.skippedCount || 0) + (run.brokenCount || 0);
             dailyTotals[dateStr].total += testCount;
             dailyTotals[dateStr].passed += run.passedCount || 0;
             dailyTotals[dateStr].failed += run.failedCount || 0;
