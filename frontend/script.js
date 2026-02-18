@@ -3,13 +3,14 @@ const API_BASE_URL = 'http://localhost:5000/api';
 let currentFilters = {
     projects: [],
     tags: [],
+    statuses: [],
     startDate: '',
-    endDate: '',
-    status: ''
+    endDate: ''
 };
 
 let allTags = [];
 let allProjects = [];
+const allStatuses = ['PASSED', 'FAILED', 'SKIPPED', 'BROKEN'];
 let currentResults = [];
 let currentTestRuns = [];
 let timeGroupedTestCases = [];
@@ -60,11 +61,8 @@ async function init() {
         document.getElementById('refreshBtn').addEventListener('click', refreshData);
         document.getElementById('exportBtn').addEventListener('click', generateExcelReport);
 
-        // Apply filters on date changes
-        document.getElementById('startDate').addEventListener('change', applyFilters);
-        document.getElementById('endDate').addEventListener('change', applyFilters);
-        // Projects and tags filters use their own event listeners in their respective render functions
-        document.getElementById('statusFilter').addEventListener('change', applyFilters);
+        // Projects, tags, and statuses filters use their own event listeners in their respective render functions
+        // document.getElementById('statusFilter').addEventListener('change', applyFilters);
 
         // Event listeners for time group view toggle
         document.getElementById('timeGroupCardView').addEventListener('click', function () {
@@ -188,9 +186,79 @@ async function loadTags() {
 
         allTags = await response.json();
         renderTagsFilter();
+        renderStatusesFilter(); // Initial render for statuses as well
     } catch (error) {
         console.error('Error loading tags:', error);
     }
+}
+
+function renderStatusesFilter() {
+    const dropdown = document.getElementById('statusDropdown');
+    const searchInput = document.getElementById('statusSearch');
+    const selectedStatusesDiv = document.getElementById('selectedStatuses');
+    let filteredStatuses = allStatuses;
+
+    function renderDropdown() {
+        dropdown.innerHTML = '';
+        filteredStatuses.forEach(status => {
+            const label = document.createElement('label');
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'status-checkbox';
+            checkbox.value = status;
+            checkbox.checked = currentFilters.statuses.includes(status);
+            checkbox.addEventListener('change', function () {
+                if (this.checked) {
+                    if (!currentFilters.statuses.includes(status)) currentFilters.statuses.push(status);
+                } else {
+                    currentFilters.statuses = currentFilters.statuses.filter(s => s !== status);
+                }
+                renderDropdown();
+                renderSelectedStatuses();
+                applyFilters();
+            });
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(status.charAt(0) + status.slice(1).toLowerCase()));
+            dropdown.appendChild(label);
+        });
+    }
+
+    function renderSelectedStatuses() {
+        selectedStatusesDiv.innerHTML = '';
+        currentFilters.statuses.forEach(status => {
+            const badge = document.createElement('span');
+            badge.className = 'status-badge';
+            badge.textContent = status.charAt(0) + status.slice(1).toLowerCase();
+            const removeBtn = document.createElement('span');
+            removeBtn.className = 'remove-status';
+            removeBtn.textContent = '×';
+            removeBtn.onclick = function (e) {
+                e.stopPropagation();
+                currentFilters.statuses = currentFilters.statuses.filter(s => s !== status);
+                renderDropdown();
+                renderSelectedStatuses();
+                applyFilters();
+            };
+            badge.appendChild(removeBtn);
+            selectedStatusesDiv.appendChild(badge);
+        });
+    }
+
+    searchInput.oninput = function () {
+        const val = searchInput.value.toLowerCase();
+        filteredStatuses = allStatuses.filter(s => s.toLowerCase().includes(val));
+        renderDropdown();
+    };
+
+    searchInput.onfocus = function () {
+        dropdown.classList.add('open');
+    };
+    searchInput.onblur = function () {
+        setTimeout(() => dropdown.classList.remove('open'), 150);
+    };
+
+    renderDropdown();
+    renderSelectedStatuses();
 }
 
 function renderTagsFilter() {
@@ -270,7 +338,7 @@ async function loadDashboard() {
         if (currentFilters.tags.length > 0) params.append('tags', currentFilters.tags.join(','));
         if (currentFilters.startDate) params.append('startDate', currentFilters.startDate);
         if (currentFilters.endDate) params.append('endDate', currentFilters.endDate);
-        if (currentFilters.status) params.append('status', currentFilters.status);
+        if (currentFilters.statuses.length > 0) params.append('status', currentFilters.statuses.join(','));
 
         const response = await fetch(`${API_BASE_URL}/dashboard?${params}`);
         if (!response.ok) throw new Error('Failed to load dashboard data');
@@ -299,7 +367,6 @@ function updateStats(data) {
 
 
 function applyFilters() {
-    currentFilters.status = document.getElementById('statusFilter').value;
     currentFilters.startDate = document.getElementById('startDate').value;
     // Add +1 day to end date so the backend's <= filter includes the entire selected day
     const endDateVal = document.getElementById('endDate').value;
@@ -313,7 +380,7 @@ function applyFilters() {
     } else {
         currentFilters.endDate = '';
     }
-    // Note: projects and tags are managed by their respective comboboxes
+    // Note: projects, tags and statuses are managed by their respective comboboxes
 
     loadDashboard();
     loadTestCasesByTime();
@@ -323,20 +390,21 @@ function clearFilters() {
     currentFilters = {
         projects: [],
         tags: [],
+        statuses: [],
         startDate: '',
-        endDate: '',
-        status: ''
+        endDate: ''
     };
 
-    document.getElementById('statusFilter').value = '';
     document.getElementById('startDate').value = '';
     document.getElementById('endDate').value = '';
     document.getElementById('projectsSearch').value = '';
     document.getElementById('tagsSearch').value = '';
+    document.getElementById('statusSearch').value = '';
 
-    // Re-render both comboboxes
+    // Re-render all comboboxes
     renderProjectsFilter();
     renderTagsFilter();
+    renderStatusesFilter();
 
     loadDashboard();
     loadTestCasesByTime();
@@ -402,7 +470,7 @@ async function loadTestCasesByTime() {
         if (currentFilters.tags.length > 0) params.append('tags', currentFilters.tags.join(','));
         if (currentFilters.startDate) params.append('startDate', currentFilters.startDate);
         if (currentFilters.endDate) params.append('endDate', currentFilters.endDate);
-        if (currentFilters.status) params.append('status', currentFilters.status);
+        if (currentFilters.statuses.length > 0) params.append('status', currentFilters.statuses.join(','));
 
         const response = await fetch(`${API_BASE_URL}/test-cases-by-time?${params}`);
         if (!response.ok) throw new Error('Failed to load test cases by time');

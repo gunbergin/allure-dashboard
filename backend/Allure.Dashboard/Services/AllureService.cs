@@ -290,8 +290,8 @@ public class AllureService : IAllureService
             if (filter.EndDate.HasValue)
                 results = results.Where(r => r.Timestamp <= filter.EndDate.Value);
 
-            if (!string.IsNullOrEmpty(filter.Status))
-                results = results.Where(r => !string.IsNullOrEmpty(r.Status) && r.Status.Equals(filter.Status, StringComparison.CurrentCultureIgnoreCase));
+            if (filter.Statuses?.Count > 0)
+                results = results.Where(r => !string.IsNullOrEmpty(r.Status) && filter.Statuses.Any(s => r.Status.Equals(s, StringComparison.CurrentCultureIgnoreCase)));
         }
 
         return await Task.FromResult(results.ToList());
@@ -315,8 +315,8 @@ public class AllureService : IAllureService
             if (filter.EndDate.HasValue)
                 testRuns = testRuns.Where(r => r.EndTime <= filter.EndDate.Value);
 
-            if (!string.IsNullOrEmpty(filter.Status))
-                testRuns = testRuns.Where(r => r.Results?.Any(t => !string.IsNullOrEmpty(t.Status) && t.Status.Equals(filter.Status, StringComparison.CurrentCultureIgnoreCase)) ?? false);
+            if (filter.Statuses?.Count > 0)
+                testRuns = testRuns.Where(r => r.Results?.Any(t => !string.IsNullOrEmpty(t.Status) && filter.Statuses.Any(s => t.Status.Equals(s, StringComparison.CurrentCultureIgnoreCase))) ?? false);
         }
 
         return await Task.FromResult(testRuns.ToList());
@@ -378,8 +378,8 @@ public class AllureService : IAllureService
             if (filter.EndDate.HasValue)
                 filteredResults = filteredResults.Where(r => r.Timestamp <= filter.EndDate.Value);
 
-            if (!string.IsNullOrEmpty(filter.Status))
-                filteredResults = filteredResults.Where(r => !string.IsNullOrEmpty(r.Status) && r.Status.Equals(filter.Status, StringComparison.CurrentCultureIgnoreCase));
+            if (filter.Statuses?.Count > 0)
+                filteredResults = filteredResults.Where(r => !string.IsNullOrEmpty(r.Status) && filter.Statuses.Any(s => r.Status.Equals(s, StringComparison.CurrentCultureIgnoreCase)));
         }
 
         var groupedByTime = new Dictionary<string, List<TestResult>>();

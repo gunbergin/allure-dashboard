@@ -1171,7 +1171,8 @@ header h1 {
 }
 
 .tags-combobox,
-.projects-combobox {
+.projects-combobox,
+.status-combobox {
     position: relative;
     width: 100%;
     max-width: 220px;
@@ -1179,7 +1180,8 @@ header h1 {
 }
 
 .tags-combobox input[type="text"],
-.projects-combobox input[type="text"] {
+.projects-combobox input[type="text"],
+.status-combobox input[type="text"] {
     width: 100% !important;
     padding: 10px 12px !important;
     border: 1px solid #d1d5db !important;
@@ -1193,20 +1195,23 @@ header h1 {
 }
 
 .tags-combobox input[type="text"]:focus,
-.projects-combobox input[type="text"]:focus {
+.projects-combobox input[type="text"]:focus,
+.status-combobox input[type="text"]:focus {
     outline: none !important;
     border-color: #667eea !important;
     box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1) !important;
 }
 
 .tags-combobox input[type="text"]::placeholder,
-.projects-combobox input[type="text"]::placeholder {
+.projects-combobox input[type="text"]::placeholder,
+.status-combobox input[type="text"]::placeholder {
     color: #9ca3af !important;
     font-style: italic !important;
 }
 
 .tags-dropdown,
-.projects-dropdown {
+.projects-dropdown,
+.status-dropdown {
     max-height: 150px;
     overflow-y: auto;
     border: 1px solid #d1d5db;
@@ -1224,12 +1229,14 @@ header h1 {
 }
 
 .tags-dropdown.open,
-.projects-dropdown.open {
+.projects-dropdown.open,
+.status-dropdown.open {
     display: block;
 }
 
 .tags-dropdown label,
-.projects-dropdown label {
+.projects-dropdown label,
+.status-dropdown label {
     display: flex;
     align-items: center;
     padding: 8px 10px;
@@ -1244,12 +1251,14 @@ header h1 {
 }
 
 .tags-dropdown label:hover,
-.projects-dropdown label:hover {
+.projects-dropdown label:hover,
+.status-dropdown label:hover {
     background: #f3f4f6;
 }
 
 .tags-dropdown label input[type="checkbox"],
-.projects-dropdown label input[type="checkbox"] {
+.projects-dropdown label input[type="checkbox"],
+.status-dropdown label input[type="checkbox"] {
     width: 16px;
     height: 16px;
     cursor: pointer;
@@ -1259,7 +1268,8 @@ header h1 {
 }
 
 .selected-tags,
-.selected-projects {
+.selected-projects,
+.selected-statuses {
     margin-top: 6px;
     display: flex;
     flex-wrap: wrap;
@@ -1267,7 +1277,8 @@ header h1 {
 }
 
 .selected-tags .tag-badge,
-.selected-projects .project-badge {
+.selected-projects .project-badge,
+.selected-statuses .status-badge {
     background: linear-gradient(135deg, #e0e7ff, #dbeafe);
     color: #3730a3;
     padding: 4px 8px;
@@ -1286,12 +1297,14 @@ header h1 {
 }
 
 .selected-tags .tag-badge:hover,
-.selected-projects .project-badge:hover {
+.selected-projects .project-badge:hover,
+.selected-statuses .status-badge:hover {
     box-shadow: 0 2px 6px rgba(102, 126, 234, 0.2);
 }
 
 .selected-tags .tag-badge .remove-tag,
-.selected-projects .project-badge .remove-project {
+.selected-projects .project-badge .remove-project,
+.selected-statuses .status-badge .remove-status {
     cursor: pointer;
     color: #dc2626;
     font-size: 16px;

@@ -28,7 +28,7 @@ public class DashboardController : ControllerBase
                 Tags = !string.IsNullOrEmpty(tags) ? tags.Split(',').ToList() : null,
                 StartDate = !string.IsNullOrEmpty(startDate) && DateTime.TryParse(startDate, out var start) ? start : null,
                 EndDate = !string.IsNullOrEmpty(endDate) && DateTime.TryParse(endDate, out var end) ? end : null,
-                Status = status
+                Statuses = !string.IsNullOrEmpty(status) ? status.Split(',').ToList() : null
             };
 
             var data = await _allureService.GetAllDataAsync(filter);
@@ -52,7 +52,7 @@ public class DashboardController : ControllerBase
                 Tags = !string.IsNullOrEmpty(tags) ? tags.Split(',').ToList() : null,
                 StartDate = !string.IsNullOrEmpty(startDate) && DateTime.TryParse(startDate, out var start) ? start : null,
                 EndDate = !string.IsNullOrEmpty(endDate) && DateTime.TryParse(endDate, out var end) ? end : null,
-                Status = status
+                Statuses = !string.IsNullOrEmpty(status) ? status.Split(',').ToList() : null
             };
 
             var results = await _allureService.GetTestResultsAsync(filter);
@@ -121,7 +121,7 @@ public class DashboardController : ControllerBase
                 Tags = !string.IsNullOrEmpty(tags) ? tags.Split(',').ToList() : null,
                 StartDate = !string.IsNullOrEmpty(startDate) && DateTime.TryParse(startDate, out var start) ? start : null,
                 EndDate = !string.IsNullOrEmpty(endDate) && DateTime.TryParse(endDate, out var end) ? end : null,
-                Status = status
+                Statuses = !string.IsNullOrEmpty(status) ? status.Split(',').ToList() : null
             };
 
             var groupedTestCases = await _allureService.GetTestCasesGroupedByTimeAsync(filter);

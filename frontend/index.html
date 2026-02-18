@@ -71,14 +71,13 @@
                     </div>
 
                     <div class="filter-group">
-                        <label for="statusFilter">Status</label>
-                        <select id="statusFilter">
-                            <option value="">All Status</option>
-                            <option value="PASSED">Passed</option>
-                            <option value="FAILED">Failed</option>
-                            <option value="SKIPPED">Skipped</option>
-                            <option value="BROKEN">Broken</option>
-                        </select>
+                        <label for="statusSearch">Status</label>
+                        <div class="status-combobox">
+                            <input type="text" id="statusSearch" placeholder="Search status..." autocomplete="off"
+                                style="width:100%;margin-bottom:6px;">
+                            <div id="statusDropdown" class="status-dropdown"></div>
+                            <div id="selectedStatuses" class="selected-statuses"></div>
+                        </div>
                     </div>
 
                     <div class="filter-group">

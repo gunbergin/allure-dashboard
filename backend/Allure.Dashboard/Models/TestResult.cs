@@ -137,7 +137,7 @@ public class FilterRequest
     public List<string>? Tags { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
-    public string? Status { get; set; }
+    public List<string>? Statuses { get; set; }
 }
 
 public class TestRun
