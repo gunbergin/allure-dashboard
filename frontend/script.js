@@ -373,9 +373,9 @@ function renderTimeGroupedCards() {
     const container = document.getElementById('groupedByTimeContainer');
     container.innerHTML = timeGroupedTestCases.map((group, index) => {
         const passRateColor = group.passRate >= 80 ? '#059669' : group.passRate >= 50 ? '#d97706' : '#dc2626';
-        // Extract unique projects from all test cases in this group
-        const uniqueProjects = [...new Set(group.testCases.map(test => test.project).filter(Boolean))].sort();
-        const projectsHtml = uniqueProjects.length > 0 ? `<div style="font-size: 13px; color: #6b7280; margin-top: 4px;">📁 ${uniqueProjects.map(p => escapeHtml(p)).join(', ')}</div>` : '';
+        // Extract unique projects from all test cases in this group, show only last segment (e.g. "Nova/Feature/BES" → "BES")
+        const uniqueProjects = [...new Set(group.testCases.map(test => test.project).filter(Boolean).map(p => p.split('/').pop()))].sort();
+        const projectsHtml = uniqueProjects.length > 0 ? `<div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">${uniqueProjects.map(p => `<span style="background: #eef2ff; color: #4338ca; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px;">${escapeHtml(p)}</span>`).join('')}</div>` : '';
         // Extract unique tags from all test cases in this group
         const uniqueTags = [...new Set(group.testCases.flatMap(test => test.tags || []))].sort();
         const tagsHtml = uniqueTags.length > 0 ? `<div class="time-group-tags">${uniqueTags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : '';
@@ -420,6 +420,7 @@ function renderTimeGroupedTable() {
             <thead>
                 <tr>
                     <th>Time Group</th>
+                    <th>Project</th>
                     <th>Pass Rate</th>
                     <th>Total</th>
                     <th>Passed</th>
@@ -434,9 +435,11 @@ function renderTimeGroupedTable() {
         const hasFailed = group.failedCount > 0;
         const rowClass = hasFailed ? 'failed-row' : '';
         const passRateColor = group.passRate >= 80 ? '#059669' : group.passRate >= 50 ? '#d97706' : '#dc2626';
+        const uniqueProjects = [...new Set(group.testCases.map(test => test.project).filter(Boolean).map(p => p.split('/').pop()))].sort();
         return `
                         <tr class="${rowClass}">
                             <td><strong>${escapeHtml(group.timeGroup)}</strong></td>
+                            <td><div style="display: flex; flex-wrap: wrap; gap: 4px;">${uniqueProjects.map(p => `<span style="background: #eef2ff; color: #4338ca; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px;">${escapeHtml(p)}</span>`).join('') || '-'}</div></td>
                             <td>
                                 <span class="pass-rate" style="color: ${passRateColor};">
                                     ${group.passRate.toFixed(1)}%
