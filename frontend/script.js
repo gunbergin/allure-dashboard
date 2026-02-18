@@ -19,12 +19,20 @@ let currentTimeGroupView = 'card'; // 'card' or 'table'
 // Initialize the dashboard
 async function init() {
     try {
-        // Set default date values FIRST: startDate = 1 week (7 days) before today, endDate = today
+        // Set default date values FIRST: startDate = 1 week (7 days) before today, endDate = tomorrow (today+1)
+        // endDate is set to tomorrow so the backend's <= filter includes all of today's results
         const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        const endYyyy = tomorrow.getFullYear();
+        const endMm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+        const endDd = String(tomorrow.getDate()).padStart(2, '0');
+        const endDateStr = `${endYyyy}-${endMm}-${endDd}`;
+        // Display today's date in the date picker for the user
         const yyyy = today.getFullYear();
         const mm = String(today.getMonth() + 1).padStart(2, '0');
         const dd = String(today.getDate()).padStart(2, '0');
-        const endDateStr = `${yyyy}-${mm}-${dd}`;
+        const endDateDisplayStr = `${yyyy}-${mm}-${dd}`;
         // Calculate 7 days ago
         const sevenDaysAgo = new Date(today);
         sevenDaysAgo.setDate(today.getDate() - 7);
@@ -35,7 +43,7 @@ async function init() {
         const startDateInput = document.getElementById('startDate');
         const endDateInput = document.getElementById('endDate');
         if (startDateInput && !startDateInput.value) startDateInput.value = startDateStr;
-        if (endDateInput && !endDateInput.value) endDateInput.value = endDateStr;
+        if (endDateInput && !endDateInput.value) endDateInput.value = endDateDisplayStr;
         // Apply initial filters to load with 1-week default
         currentFilters.startDate = startDateStr;
         currentFilters.endDate = endDateStr;
@@ -58,14 +66,14 @@ async function init() {
         document.getElementById('statusFilter').addEventListener('change', applyFilters);
 
         // Event listeners for time group view toggle
-        document.getElementById('timeGroupCardView').addEventListener('click', function() {
+        document.getElementById('timeGroupCardView').addEventListener('click', function () {
             currentTimeGroupView = 'card';
             document.getElementById('timeGroupCardView').classList.add('active');
             document.getElementById('timeGroupTableView').classList.remove('active');
             renderTimeGroupedTestCases();
         });
 
-        document.getElementById('timeGroupTableView').addEventListener('click', function() {
+        document.getElementById('timeGroupTableView').addEventListener('click', function () {
             currentTimeGroupView = 'table';
             document.getElementById('timeGroupTableView').classList.add('active');
             document.getElementById('timeGroupCardView').classList.remove('active');
@@ -73,7 +81,7 @@ async function init() {
         });
 
         // Keyboard event listener for closing lightbox with Escape key
-        document.addEventListener('keydown', function(e) {
+        document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {
                 const lightbox = document.getElementById('imageLightbox');
                 if (lightbox && lightbox.style.display !== 'none') {
@@ -94,10 +102,10 @@ async function loadProjects() {
     try {
         const response = await fetch(`${API_BASE_URL}/projects`);
         if (!response.ok) throw new Error('Failed to load projects');
-        
+
         const projects = await response.json();
         const select = document.getElementById('projectFilter');
-        
+
         projects.forEach(project => {
             const option = document.createElement('option');
             option.value = project;
@@ -113,7 +121,7 @@ async function loadTags() {
     try {
         const response = await fetch(`${API_BASE_URL}/tags`);
         if (!response.ok) throw new Error('Failed to load tags');
-        
+
         allTags = await response.json();
         renderTagsFilter();
     } catch (error) {
@@ -137,7 +145,7 @@ function renderTagsFilter() {
             checkbox.className = 'tag-checkbox';
             checkbox.value = tag;
             checkbox.checked = currentFilters.tags.includes(tag);
-            checkbox.addEventListener('change', function() {
+            checkbox.addEventListener('change', function () {
                 if (this.checked) {
                     if (!currentFilters.tags.includes(tag)) currentFilters.tags.push(tag);
                 } else {
@@ -162,7 +170,7 @@ function renderTagsFilter() {
             const removeBtn = document.createElement('span');
             removeBtn.className = 'remove-tag';
             removeBtn.textContent = '×';
-            removeBtn.onclick = function() {
+            removeBtn.onclick = function () {
                 currentFilters.tags = currentFilters.tags.filter(t => t !== tag);
                 renderDropdown();
                 renderSelectedTags();
@@ -173,16 +181,16 @@ function renderTagsFilter() {
         });
     }
 
-    searchInput.oninput = function() {
+    searchInput.oninput = function () {
         const val = searchInput.value.toLowerCase();
         filteredTags = allTags.filter(tag => tag.toLowerCase().includes(val));
         renderDropdown();
     };
 
-    searchInput.onfocus = function() {
+    searchInput.onfocus = function () {
         dropdown.classList.add('open');
     };
-    searchInput.onblur = function() {
+    searchInput.onblur = function () {
         setTimeout(() => dropdown.classList.remove('open'), 150);
     };
 
@@ -199,10 +207,10 @@ async function loadDashboard() {
         if (currentFilters.startDate) params.append('startDate', currentFilters.startDate);
         if (currentFilters.endDate) params.append('endDate', currentFilters.endDate);
         if (currentFilters.status) params.append('status', currentFilters.status);
-        
+
         const response = await fetch(`${API_BASE_URL}/dashboard?${params}`);
         if (!response.ok) throw new Error('Failed to load dashboard data');
-        
+
         const data = await response.json();
         updateStats(data);
         updateLastRefresh();
@@ -220,7 +228,7 @@ function updateStats(data) {
     document.getElementById('failedTests').textContent = data.statusCounts?.FAILED || 0;
     document.getElementById('skippedTests').textContent = data.statusCounts?.SKIPPED || 0;
     document.getElementById('passRate').textContent = (data.passRate || 0).toFixed(1) + '%';
-    
+
     // Update charts
     updateCharts(data);
 }
@@ -230,9 +238,20 @@ function applyFilters() {
     currentFilters.project = document.getElementById('projectFilter').value;
     currentFilters.status = document.getElementById('statusFilter').value;
     currentFilters.startDate = document.getElementById('startDate').value;
-    currentFilters.endDate = document.getElementById('endDate').value;
+    // Add +1 day to end date so the backend's <= filter includes the entire selected day
+    const endDateVal = document.getElementById('endDate').value;
+    if (endDateVal) {
+        const endDateObj = new Date(endDateVal);
+        endDateObj.setDate(endDateObj.getDate() + 1);
+        const ey = endDateObj.getFullYear();
+        const em = String(endDateObj.getMonth() + 1).padStart(2, '0');
+        const ed = String(endDateObj.getDate()).padStart(2, '0');
+        currentFilters.endDate = `${ey}-${em}-${ed}`;
+    } else {
+        currentFilters.endDate = '';
+    }
     // Note: currentFilters.tags is managed by the tags combobox, not by HTML form elements
-    
+
     loadDashboard();
     loadTestCasesByTime();
 }
@@ -245,18 +264,18 @@ function clearFilters() {
         endDate: '',
         status: ''
     };
-    
+
     document.getElementById('projectFilter').value = '';
     document.getElementById('statusFilter').value = '';
     document.getElementById('startDate').value = '';
     document.getElementById('endDate').value = '';
-    
+
     // Uncheck all tag checkboxes and re-render tags filter
     document.querySelectorAll('input.tag-checkbox').forEach(checkbox => {
         checkbox.checked = false;
     });
     renderTagsFilter();
-    
+
     loadDashboard();
     loadTestCasesByTime();
 }
@@ -278,10 +297,10 @@ async function refreshData() {
         await loadTags();
         await loadDashboard();
         await loadTestCasesByTime();
-        
+
         // Update last updated time
         updateLastUpdatedTime();
-        
+
         showSuccess('Data refreshed successfully');
     } catch (error) {
         console.error('Error refreshing data:', error);
@@ -312,7 +331,7 @@ function showLoadingSpinner(show) {
 async function loadTestCasesByTime() {
     const container = document.getElementById('groupedByTimeContainer');
     if (!container) return;
-    
+
     container.innerHTML = '<p>Loading test cases by time...</p>';
 
     try {
@@ -322,7 +341,7 @@ async function loadTestCasesByTime() {
         if (currentFilters.startDate) params.append('startDate', currentFilters.startDate);
         if (currentFilters.endDate) params.append('endDate', currentFilters.endDate);
         if (currentFilters.status) params.append('status', currentFilters.status);
-        
+
         const response = await fetch(`${API_BASE_URL}/test-cases-by-time?${params}`);
         if (!response.ok) throw new Error('Failed to load test cases by time');
 
@@ -354,6 +373,9 @@ function renderTimeGroupedCards() {
     const container = document.getElementById('groupedByTimeContainer');
     container.innerHTML = timeGroupedTestCases.map((group, index) => {
         const passRateColor = group.passRate >= 80 ? '#059669' : group.passRate >= 50 ? '#d97706' : '#dc2626';
+        // Extract unique projects from all test cases in this group
+        const uniqueProjects = [...new Set(group.testCases.map(test => test.project).filter(Boolean))].sort();
+        const projectsHtml = uniqueProjects.length > 0 ? `<div style="font-size: 13px; color: #6b7280; margin-top: 4px;">📁 ${uniqueProjects.map(p => escapeHtml(p)).join(', ')}</div>` : '';
         // Extract unique tags from all test cases in this group
         const uniqueTags = [...new Set(group.testCases.flatMap(test => test.tags || []))].sort();
         const tagsHtml = uniqueTags.length > 0 ? `<div class="time-group-tags">${uniqueTags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : '';
@@ -362,6 +384,7 @@ function renderTimeGroupedCards() {
                 <div class="time-group-header">
                     <div>
                         <h3>${group.timeGroup}</h3>
+                        ${projectsHtml}
                         ${tagsHtml}
                     </div>
                     <span class="pass-rate" style="color: ${passRateColor};">${group.passRate.toFixed(1)}%</span>
@@ -408,10 +431,10 @@ function renderTimeGroupedTable() {
             </thead>
             <tbody>
                 ${timeGroupedTestCases.map((group, index) => {
-                    const hasFailed = group.failedCount > 0;
-                    const rowClass = hasFailed ? 'failed-row' : '';
-                    const passRateColor = group.passRate >= 80 ? '#059669' : group.passRate >= 50 ? '#d97706' : '#dc2626';
-                    return `
+        const hasFailed = group.failedCount > 0;
+        const rowClass = hasFailed ? 'failed-row' : '';
+        const passRateColor = group.passRate >= 80 ? '#059669' : group.passRate >= 50 ? '#d97706' : '#dc2626';
+        return `
                         <tr class="${rowClass}">
                             <td><strong>${escapeHtml(group.timeGroup)}</strong></td>
                             <td>
@@ -429,7 +452,7 @@ function renderTimeGroupedTable() {
                             </td>
                         </tr>
                     `;
-                }).join('')}
+    }).join('')}
             </tbody>
         </table>
     `;
@@ -441,7 +464,7 @@ function showTimeGroupDetails(groupIndex) {
 
     // Update modal header
     document.getElementById('timeGroupModalTitle').textContent = `Test Cases - ${group.timeGroup}`;
-    
+
     // Update statistics
     document.getElementById('groupTotalTests').textContent = group.testCases.length;
     document.getElementById('groupPassedCount').textContent = group.passedCount;
@@ -464,9 +487,9 @@ function showTimeGroupDetails(groupIndex) {
             <td>${escapeHtml(test.project || '-')}</td>
             <td>
                 ${test.tags && test.tags.length > 0
-                    ? `<div class="tags-list">${test.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>`
-                    : '-'
-                }
+            ? `<div class="tags-list">${test.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>`
+            : '-'
+        }
             </td>
             <td>
                 <button class="action-btn" onclick="showTimeGroupTestDetails(${groupIndex}, ${testIndex})" style="font-size: 12px; padding: 4px 8px;">View</button>
@@ -534,7 +557,7 @@ function showError(message) {
     const toast = document.getElementById('errorToast');
     toast.textContent = message;
     toast.style.display = 'block';
-    
+
     setTimeout(() => {
         toast.style.display = 'none';
     }, 5000);
@@ -546,7 +569,7 @@ function showSuccess(message) {
     toast.classList.remove('toast-error');
     toast.classList.add('toast-success');
     toast.style.display = 'block';
-    
+
     setTimeout(() => {
         toast.style.display = 'none';
         toast.classList.add('toast-error');
@@ -569,14 +592,14 @@ function escapeHtml(text) {
 function showTestDetails(index) {
     const result = currentResults[index];
     if (!result) return;
-    
+
     // Update modal header and details
     document.getElementById('modalTitle').textContent = result.name;
     document.getElementById('modalStatus').innerHTML = `<span class="status-badge ${result.status}">${result.status}</span>`;
     document.getElementById('modalProject').textContent = result.project;
     document.getElementById('modalDuration').textContent = result.duration;
     document.getElementById('modalTimestamp').textContent = formatDate(result.timestamp);
-    
+
     // Fetch full test details with steps
     fetchTestDetails(result.source).then(fullTest => {
         renderSteps(fullTest.steps || []);
@@ -601,12 +624,12 @@ async function fetchTestDetails(filePath) {
 
 function renderSteps(steps) {
     const container = document.getElementById('stepsContainer');
-    
+
     if (!steps || steps.length === 0) {
         container.innerHTML = '<div class="no-steps">No steps recorded</div>';
         return;
     }
-    
+
     container.innerHTML = steps.map((step, index) => `
         <div class="step">
             <div class="step-name">${escapeHtml(step.name || 'Unknown Step')}</div>
@@ -639,10 +662,10 @@ function renderSteps(steps) {
 function renderAttachment(attachment) {
     const isImage = attachment.type && (attachment.type.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp)$/i.test(attachment.source));
     const fileName = attachment.name || attachment.source?.split('/').pop() || 'Attachment';
-    
+
     // The attachment.source should already be in the format "data/test-results/filename"
     const attachmentUrl = `${API_BASE_URL}/attachment/${attachment.source}`;
-    
+
     return `
         <div class="attachment-item">
             <div class="attachment-thumbnail" ${isImage ? `onclick="openImageLightbox('${escapeHtml(attachmentUrl)}', '${escapeHtml(fileName)}')"` : ''} ${isImage ? 'style="cursor: pointer;"' : ''}>
@@ -696,7 +719,7 @@ function updateCharts(data) {
             const day = String(date.getDate()).padStart(2, '0');
             const year = date.getFullYear();
             const dateStr = `${month}/${day}/${year}`;
-            
+
             if (!dailyTotals[dateStr]) {
                 dailyTotals[dateStr] = {
                     total: 0,
@@ -789,7 +812,7 @@ function updateStatusChart(dailyTotals) {
                 },
                 tooltip: {
                     callbacks: {
-                        afterLabel: function(context) {
+                        afterLabel: function (context) {
                             if (context.datasetIndex === 3) { // After broken (last dataset)
                                 const index = context.dataIndex;
                                 const total = passed[index] + failed[index] + skipped[index] + broken[index];
@@ -902,7 +925,7 @@ function updateBreakdownChart(statusCounts) {
 async function generateExcelReport() {
     try {
         showLoading(true);
-        
+
         // Fetch current filtered data
         const params = new URLSearchParams();
         if (currentFilters.project) params.append('project', currentFilters.project);
@@ -910,12 +933,12 @@ async function generateExcelReport() {
         if (currentFilters.startDate) params.append('startDate', currentFilters.startDate);
         if (currentFilters.endDate) params.append('endDate', currentFilters.endDate);
         if (currentFilters.status) params.append('status', currentFilters.status);
-        
+
         const response = await fetch(`${API_BASE_URL}/results?${params}`);
         if (!response.ok) throw new Error('Failed to fetch results');
-        
+
         const results = await response.json();
-        
+
         // Create workbook
         const wb = XLSX.utils.book_new();
         wb.props = {
@@ -923,14 +946,14 @@ async function generateExcelReport() {
             author: 'Allure Dashboard',
             created: new Date()
         };
-        
+
         // Sheet 1: Summary
         const summaryData = createSummarySummary(results);
         const summarySheet = XLSX.utils.json_to_sheet(summaryData);
         applyHeaderStyle(summarySheet, ['Metric', 'Value']);
         setSummaryColumnWidths(summarySheet);
         XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
-        
+
         // Sheet 2: By Date/Time
         const byTime = createByTimeData(results);
         const timeSheet = XLSX.utils.json_to_sheet(byTime);
@@ -938,7 +961,7 @@ async function generateExcelReport() {
         applyDataStyle(timeSheet, byTime.length);
         setColumnWidths(timeSheet, [25, 10, 10, 10, 10, 10, 15]);
         XLSX.utils.book_append_sheet(wb, timeSheet, 'By Date & Time');
-        
+
         // Sheet 3: By Project
         const byProject = createByProjectData(results);
         const projectSheet = XLSX.utils.json_to_sheet(byProject);
@@ -946,7 +969,7 @@ async function generateExcelReport() {
         applyDataStyle(projectSheet, byProject.length);
         setColumnWidths(projectSheet, [20, 10, 10, 10, 10, 10, 15]);
         XLSX.utils.book_append_sheet(wb, projectSheet, 'By Project');
-        
+
         // Sheet 4: By Status
         const byStatus = createByStatusData(results);
         const statusSheet = XLSX.utils.json_to_sheet(byStatus);
@@ -954,7 +977,7 @@ async function generateExcelReport() {
         applyDataStyle(statusSheet, byStatus.length);
         setColumnWidths(statusSheet, [15, 12, 20, 22, 18]);
         XLSX.utils.book_append_sheet(wb, statusSheet, 'By Status');
-        
+
         // Sheet 5: All Results Details
         const details = createDetailsData(results);
         const detailsSheet = XLSX.utils.json_to_sheet(details);
@@ -962,11 +985,11 @@ async function generateExcelReport() {
         applyStatusColorCondition(detailsSheet, details.length);
         setColumnWidths(detailsSheet, [35, 12, 15, 15, 20, 25]);
         XLSX.utils.book_append_sheet(wb, detailsSheet, 'All Results');
-        
+
         // Generate filename with timestamp
         const now = new Date();
         const filename = `AllureReport_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
-        
+
         // Download
         XLSX.writeFile(wb, filename);
         showSuccess('Report exported successfully');
@@ -991,7 +1014,7 @@ function applyHeaderStyle(sheet, headers) {
             right: { style: 'thin', color: { rgb: 'FF000000' } }
         }
     };
-    
+
     const range = XLSX.utils.decode_range(sheet['!ref']);
     for (let C = range.s.c; C <= range.e.c; ++C) {
         const cellAddress = XLSX.utils.encode_col(C) + '1';
@@ -1011,12 +1034,12 @@ function applyDataStyle(sheet, rowCount) {
             right: { style: 'thin', color: { rgb: 'FFE5E7EB' } }
         }
     };
-    
+
     const alternateRowStyle = {
         fill: { fgColor: { rgb: 'FFF9FAFB' } },
         ...dataStyle
     };
-    
+
     const range = XLSX.utils.decode_range(sheet['!ref']);
     for (let R = 2; R <= rowCount + 1; ++R) {
         for (let C = range.s.c; C <= range.e.c; ++C) {
@@ -1035,7 +1058,7 @@ function applyStatusColorCondition(sheet, rowCount) {
         SKIPPED: 'FFD97706',
         BROKEN: 'FF7C3AED'
     };
-    
+
     const dataStyle = {
         alignment: { horizontal: 'center', vertical: 'center' },
         border: {
@@ -1045,13 +1068,13 @@ function applyStatusColorCondition(sheet, rowCount) {
             right: { style: 'thin', color: { rgb: 'FFE5E7EB' } }
         }
     };
-    
+
     const range = XLSX.utils.decode_range(sheet['!ref']);
     for (let R = 2; R <= rowCount + 1; ++R) {
         for (let C = range.s.c; C <= range.e.c; ++C) {
             const cellAddress = XLSX.utils.encode_cell({ r: R - 1, c: C });
             if (!sheet[cellAddress]) continue;
-            
+
             // Status column is column B (index 1)
             if (C === 1) {
                 const status = sheet[cellAddress].v;
@@ -1089,7 +1112,7 @@ function createSummarySummary(results) {
     const passRate = total > 0 ? ((passed / total) * 100).toFixed(2) : 0;
     const totalDuration = results.reduce((sum, r) => sum + (r.duration || 0), 0);
     const avgDuration = total > 0 ? (totalDuration / total).toFixed(2) : 0;
-    
+
     return [
         { Metric: '📊 Total Tests', Value: total },
         { Metric: '✅ Passed', Value: passed },
@@ -1105,11 +1128,11 @@ function createSummarySummary(results) {
 
 function createByTimeData(results) {
     const grouped = {};
-    
+
     results.forEach(result => {
         const date = new Date(result.timestamp);
         const timeKey = date.toLocaleDateString('tr-TR') + ' ' + String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
-        
+
         if (!grouped[timeKey]) {
             grouped[timeKey] = { passed: 0, failed: 0, skipped: 0, broken: 0, total: 0, duration: 0 };
         }
@@ -1117,7 +1140,7 @@ function createByTimeData(results) {
         grouped[timeKey].total++;
         grouped[timeKey].duration += result.duration || 0;
     });
-    
+
     return Object.entries(grouped).map(([timeGroup, stats]) => ({
         'Date & Time': timeGroup,
         'Total': stats.total,
@@ -1131,17 +1154,17 @@ function createByTimeData(results) {
 
 function createByProjectData(results) {
     const grouped = {};
-    
+
     results.forEach(result => {
         const project = result.project || 'Unknown';
-        
+
         if (!grouped[project]) {
             grouped[project] = { passed: 0, failed: 0, skipped: 0, broken: 0, total: 0 };
         }
         grouped[project][result.status.toLowerCase()]++;
         grouped[project].total++;
     });
-    
+
     return Object.entries(grouped).map(([project, stats]) => ({
         'Project': project,
         'Total': stats.total,
@@ -1155,17 +1178,17 @@ function createByProjectData(results) {
 
 function createByStatusData(results) {
     const grouped = {};
-    
+
     results.forEach(result => {
         const status = result.status;
-        
+
         if (!grouped[status]) {
             grouped[status] = { count: 0, duration: 0 };
         }
         grouped[status].count++;
         grouped[status].duration += result.duration || 0;
     });
-    
+
     const statusOrder = ['PASSED', 'FAILED', 'BROKEN', 'SKIPPED'];
     return Object.entries(grouped)
         .sort((a, b) => statusOrder.indexOf(a[0]) - statusOrder.indexOf(b[0]))
@@ -1192,19 +1215,19 @@ function createDetailsData(results) {
 }
 
 // Close modal on background click and initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('detailsModal').addEventListener('click', function(e) {
+document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('detailsModal').addEventListener('click', function (e) {
         if (e.target === this) {
             closeDetailsModal();
         }
     });
 
-    document.getElementById('timeGroupModal').addEventListener('click', function(e) {
+    document.getElementById('timeGroupModal').addEventListener('click', function (e) {
         if (e.target === this) {
             closeTimeGroupModal();
         }
     });
-    
+
     init();
 });
 

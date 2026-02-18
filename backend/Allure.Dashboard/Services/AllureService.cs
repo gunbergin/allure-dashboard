@@ -8,17 +8,20 @@ public class AllureService : IAllureService
 {
     private readonly ILogger<AllureService> _logger;
     private readonly IOracleDataService _oracleDataService;
+    private readonly string _allureReportsPath;
     private List<TestRun> _cachedTestRuns = new();
     private List<TestResult> _cachedResults = new();
     private List<string> _projects = new();
     private List<string> _tags = new();
     private bool _useOracleDatabase;
+    private Dictionary<string, List<Attachment>> _attachmentsCache = new();
 
     public AllureService(ILogger<AllureService> logger, IConfiguration configuration, IOracleDataService oracleDataService)
     {
         _logger = logger;
         _oracleDataService = oracleDataService;
         _useOracleDatabase = configuration["Database:Provider"] == "Oracle";
+        _allureReportsPath = configuration["AllureReportsPath"] ?? "../../allure-reports";
     }
 
     public async Task RefreshDataAsync()
@@ -29,6 +32,10 @@ public class AllureService : IAllureService
             _cachedResults.Clear();
             _projects.Clear();
             _tags.Clear();
+            _attachmentsCache.Clear();
+
+            // Load attachments from JSON files
+            await LoadAttachmentsFromFilesAsync();
 
             if (_useOracleDatabase)
             {
@@ -140,6 +147,11 @@ public class AllureService : IAllureService
             // Parse labels/tags using format-aware extraction
             var tags = ExtractTagsFromOracleLabels(oracleResult.Labels);
 
+            // Get attachments from cache if available
+            var attachments = _attachmentsCache.ContainsKey(oracleResult.Uuid)
+                ? _attachmentsCache[oracleResult.Uuid]
+                : null;
+
             return new TestResult
             {
                 Id = oracleResult.Uuid,
@@ -152,7 +164,7 @@ public class AllureService : IAllureService
                 Duration = duration,
                 Source = oracleResult.Uuid,
                 Steps = new List<Step>(), // Will be populated from database
-                Attachments = null // Will be loaded separately if needed
+                Attachments = attachments // Load from attachments cache
             };
         }
         catch (Exception ex)
@@ -401,4 +413,77 @@ public class AllureService : IAllureService
 
         return await Task.FromResult(result_list);
     }
+
+    private async Task LoadAttachmentsFromFilesAsync()
+    {
+        try
+        {
+            var allureReportsPath = _allureReportsPath;
+            if (!Directory.Exists(allureReportsPath))
+            {
+                _logger.LogWarning($"Allure reports path does not exist: {allureReportsPath}");
+                return;
+            }
+
+            var resultPath = Path.Combine(allureReportsPath, "data", "test-results");
+            if (!Directory.Exists(resultPath))
+            {
+                _logger.LogWarning($"Test results path does not exist: {resultPath}");
+                return;
+            }
+
+            // Read all result-*.json files
+            var jsonFiles = Directory.GetFiles(resultPath, "*.json", SearchOption.TopDirectoryOnly)
+                .Where(path => Path.GetFileName(path)
+                    .Contains("result", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+            foreach (var jsonFile in jsonFiles)
+            {
+                try
+                {
+                    var jsonContent = await File.ReadAllTextAsync(jsonFile);
+                    var jsonObject = JObject.Parse(jsonContent);
+                    
+                    var uuid = jsonObject["uuid"]?.ToString();
+                    if (string.IsNullOrEmpty(uuid))
+                        continue;
+
+                    var attachments = new List<Attachment>();
+                    var attachmentsArray = jsonObject["attachments"] as JArray;
+                    
+                    if (attachmentsArray != null)
+                    {
+                        foreach (var att in attachmentsArray)
+                        {
+                            var attachment = new Attachment
+                            {
+                                Name = att["name"]?.ToString(),
+                                Source = att["source"]?.ToString(),
+                                Type = att["type"]?.ToString()
+                            };
+                            attachments.Add(attachment);
+                        }
+                    }
+
+                    if (attachments.Count > 0)
+                    {
+                        _attachmentsCache[uuid] = attachments;
+                        _logger.LogInformation($"Loaded {attachments.Count} attachments for test {uuid}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning($"Error reading attachments from {jsonFile}: {ex.Message}");
+                }
+            }
+
+            _logger.LogInformation($"Loaded attachments for {_attachmentsCache.Count} test results");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error loading attachments from files: {ex.Message}");
+        }
+    }
 }
+
