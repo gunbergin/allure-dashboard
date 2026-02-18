@@ -133,7 +133,7 @@ public class TestReport
 
 public class FilterRequest
 {
-    public string? Project { get; set; }
+    public List<string>? Projects { get; set; }
     public List<string>? Tags { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }

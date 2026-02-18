@@ -1,7 +1,7 @@
 const API_BASE_URL = 'http://localhost:5000/api';
 
 let currentFilters = {
-    project: '',
+    projects: [],
     tags: [],
     startDate: '',
     endDate: '',
@@ -9,6 +9,7 @@ let currentFilters = {
 };
 
 let allTags = [];
+let allProjects = [];
 let currentResults = [];
 let currentTestRuns = [];
 let timeGroupedTestCases = [];
@@ -62,7 +63,7 @@ async function init() {
         // Apply filters on date changes
         document.getElementById('startDate').addEventListener('change', applyFilters);
         document.getElementById('endDate').addEventListener('change', applyFilters);
-        document.getElementById('projectFilter').addEventListener('change', applyFilters);
+        // Projects and tags filters use their own event listeners in their respective render functions
         document.getElementById('statusFilter').addEventListener('change', applyFilters);
 
         // Event listeners for time group view toggle
@@ -103,18 +104,81 @@ async function loadProjects() {
         const response = await fetch(`${API_BASE_URL}/projects`);
         if (!response.ok) throw new Error('Failed to load projects');
 
-        const projects = await response.json();
-        const select = document.getElementById('projectFilter');
-
-        projects.forEach(project => {
-            const option = document.createElement('option');
-            option.value = project;
-            option.textContent = project;
-            select.appendChild(option);
-        });
+        allProjects = await response.json();
+        renderProjectsFilter();
     } catch (error) {
         console.error('Error loading projects:', error);
     }
+}
+
+function renderProjectsFilter() {
+    const dropdown = document.getElementById('projectsDropdown');
+    const searchInput = document.getElementById('projectsSearch');
+    const selectedProjectsDiv = document.getElementById('selectedProjects');
+    let filteredProjects = allProjects;
+
+    function renderDropdown() {
+        dropdown.innerHTML = '';
+        filteredProjects.forEach(project => {
+            const label = document.createElement('label');
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'project-checkbox';
+            checkbox.value = project;
+            checkbox.checked = currentFilters.projects.includes(project);
+            checkbox.addEventListener('change', function () {
+                if (this.checked) {
+                    if (!currentFilters.projects.includes(project)) currentFilters.projects.push(project);
+                } else {
+                    currentFilters.projects = currentFilters.projects.filter(p => p !== project);
+                }
+                renderDropdown();
+                renderSelectedProjects();
+                applyFilters();
+            });
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(project));
+            dropdown.appendChild(label);
+        });
+    }
+
+    function renderSelectedProjects() {
+        selectedProjectsDiv.innerHTML = '';
+        currentFilters.projects.forEach(project => {
+            const badge = document.createElement('span');
+            badge.className = 'project-badge';
+            badge.textContent = project.split('/').pop(); // Show only last part
+            badge.title = project; // Full path on hover
+            const removeBtn = document.createElement('span');
+            removeBtn.className = 'remove-project';
+            removeBtn.textContent = '×';
+            removeBtn.onclick = function (e) {
+                e.stopPropagation();
+                currentFilters.projects = currentFilters.projects.filter(p => p !== project);
+                renderDropdown();
+                renderSelectedProjects();
+                applyFilters();
+            };
+            badge.appendChild(removeBtn);
+            selectedProjectsDiv.appendChild(badge);
+        });
+    }
+
+    searchInput.oninput = function () {
+        const val = searchInput.value.toLowerCase();
+        filteredProjects = allProjects.filter(p => p.toLowerCase().includes(val));
+        renderDropdown();
+    };
+
+    searchInput.onfocus = function () {
+        dropdown.classList.add('open');
+    };
+    searchInput.onblur = function () {
+        setTimeout(() => dropdown.classList.remove('open'), 150);
+    };
+
+    renderDropdown();
+    renderSelectedProjects();
 }
 
 async function loadTags() {
@@ -202,7 +266,7 @@ async function loadDashboard() {
     showLoading(true);
     try {
         const params = new URLSearchParams();
-        if (currentFilters.project) params.append('project', currentFilters.project);
+        if (currentFilters.projects.length > 0) params.append('project', currentFilters.projects.join(','));
         if (currentFilters.tags.length > 0) params.append('tags', currentFilters.tags.join(','));
         if (currentFilters.startDate) params.append('startDate', currentFilters.startDate);
         if (currentFilters.endDate) params.append('endDate', currentFilters.endDate);
@@ -235,7 +299,6 @@ function updateStats(data) {
 
 
 function applyFilters() {
-    currentFilters.project = document.getElementById('projectFilter').value;
     currentFilters.status = document.getElementById('statusFilter').value;
     currentFilters.startDate = document.getElementById('startDate').value;
     // Add +1 day to end date so the backend's <= filter includes the entire selected day
@@ -250,7 +313,7 @@ function applyFilters() {
     } else {
         currentFilters.endDate = '';
     }
-    // Note: currentFilters.tags is managed by the tags combobox, not by HTML form elements
+    // Note: projects and tags are managed by their respective comboboxes
 
     loadDashboard();
     loadTestCasesByTime();
@@ -258,22 +321,21 @@ function applyFilters() {
 
 function clearFilters() {
     currentFilters = {
-        project: '',
+        projects: [],
         tags: [],
         startDate: '',
         endDate: '',
         status: ''
     };
 
-    document.getElementById('projectFilter').value = '';
     document.getElementById('statusFilter').value = '';
     document.getElementById('startDate').value = '';
     document.getElementById('endDate').value = '';
+    document.getElementById('projectsSearch').value = '';
+    document.getElementById('tagsSearch').value = '';
 
-    // Uncheck all tag checkboxes and re-render tags filter
-    document.querySelectorAll('input.tag-checkbox').forEach(checkbox => {
-        checkbox.checked = false;
-    });
+    // Re-render both comboboxes
+    renderProjectsFilter();
     renderTagsFilter();
 
     loadDashboard();
@@ -336,7 +398,7 @@ async function loadTestCasesByTime() {
 
     try {
         const params = new URLSearchParams();
-        if (currentFilters.project) params.append('project', currentFilters.project);
+        if (currentFilters.projects.length > 0) params.append('project', currentFilters.projects.join(','));
         if (currentFilters.tags.length > 0) params.append('tags', currentFilters.tags.join(','));
         if (currentFilters.startDate) params.append('startDate', currentFilters.startDate);
         if (currentFilters.endDate) params.append('endDate', currentFilters.endDate);

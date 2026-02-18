@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,29 +9,31 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
+
 <body>
-    <div id="loadingSpinner" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3000;">
-    <div class="spinner"></div>
-    <p>Loading data...</p>
-</div>
+    <div id="loadingSpinner"
+        style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3000;">
+        <div class="spinner"></div>
+        <p>Loading data...</p>
+    </div>
     <div id="detailsModal" class="modal" style="display: none;">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="modalTitle">Test Details</h3>
-            <button class="modal-close" onclick="closeDetailsModal()">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="test-details">
-                <div class="detail-row"><strong>Status:</strong> <span id="modalStatus"></span></div>
-                <div class="detail-row"><strong>Project:</strong> <span id="modalProject"></span></div>
-                <div class="detail-row"><strong>Duration:</strong> <span id="modalDuration"></span></div>
-                <div class="detail-row"><strong>Timestamp:</strong> <span id="modalTimestamp"></span></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Test Details</h3>
+                <button class="modal-close" onclick="closeDetailsModal()">&times;</button>
             </div>
-            <h4>Execution Steps</h4>
-            <div id="stepsContainer" class="steps-container"></div>
+            <div class="modal-body">
+                <div class="test-details">
+                    <div class="detail-row"><strong>Status:</strong> <span id="modalStatus"></span></div>
+                    <div class="detail-row"><strong>Project:</strong> <span id="modalProject"></span></div>
+                    <div class="detail-row"><strong>Duration:</strong> <span id="modalDuration"></span></div>
+                    <div class="detail-row"><strong>Timestamp:</strong> <span id="modalTimestamp"></span></div>
+                </div>
+                <h4>Execution Steps</h4>
+                <div id="stepsContainer" class="steps-container"></div>
+            </div>
         </div>
     </div>
-</div>
 
     <!-- Image Lightbox Modal -->
     <div id="imageLightbox" class="image-lightbox" style="display: none;" onclick="closeImageLightbox()">
@@ -56,12 +59,15 @@
             <aside class="sidebar">
                 <div class="filter-section">
                     <h3>Filters</h3>
-                    
+
                     <div class="filter-group">
-                        <label for="projectFilter">Project</label>
-                        <select id="projectFilter">
-                            <option value="">All Projects</option>
-                        </select>
+                        <label for="projectsSearch">Project</label>
+                        <div class="projects-combobox">
+                            <input type="text" id="projectsSearch" placeholder="Search projects..." autocomplete="off"
+                                style="width:100%;margin-bottom:6px;">
+                            <div id="projectsDropdown" class="projects-dropdown"></div>
+                            <div id="selectedProjects" class="selected-projects"></div>
+                        </div>
                     </div>
 
                     <div class="filter-group">
@@ -78,7 +84,8 @@
                     <div class="filter-group">
                         <label for="tagsFilter">Tags</label>
                         <div class="tags-combobox">
-                            <input type="text" id="tagsSearch" placeholder="Search tags..." autocomplete="off" style="width:100%;margin-bottom:6px;">
+                            <input type="text" id="tagsSearch" placeholder="Search tags..." autocomplete="off"
+                                style="width:100%;margin-bottom:6px;">
                             <div id="tagsDropdown" class="tags-dropdown"></div>
                             <div id="selectedTags" class="selected-tags"></div>
                         </div>
@@ -141,7 +148,8 @@
 
                 <!-- Test Cases Grouped by Time -->
                 <section class="grouped-by-time-section">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                         <h2 style="margin: 0;">Test Cases by Date & Time</h2>
                         <div class="view-toggle">
                             <button class="toggle-btn active" id="timeGroupCardView" data-view="card">Card View</button>
@@ -153,59 +161,59 @@
                     </div>
                 </section>
 
-                    <!-- Time Group Details Modal -->
-                    <div id="timeGroupModal" class="modal" style="display: none;">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h3 id="timeGroupModalTitle"></h3>
-                                <button class="modal-close" onclick="closeTimeGroupModal()">&times;</button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="time-group-details-stats">
-                                    <div class="stat-mini">
-                                        <strong>Total Tests:</strong>
-                                        <span id="groupTotalTests">0</span>
-                                    </div>
-                                    <div class="stat-mini">
-                                        <strong>Passed:</strong>
-                                        <span id="groupPassedCount" class="badge-green">0</span>
-                                    </div>
-                                    <div class="stat-mini">
-                                        <strong>Failed:</strong>
-                                        <span id="groupFailedCount" class="badge-red">0</span>
-                                    </div>
-                                    <div class="stat-mini">
-                                        <strong>Skipped:</strong>
-                                        <span id="groupSkippedCount" class="badge-orange">0</span>
-                                    </div>
-                                    <div class="stat-mini">
-                                        <strong>Broken:</strong>
-                                        <span id="groupBrokenCount" class="badge-purple">0</span>
-                                    </div>
-                                    <div class="stat-mini">
-                                        <strong>Pass Rate:</strong>
-                                        <span id="groupPassRate">0%</span>
-                                    </div>
+                <!-- Time Group Details Modal -->
+                <div id="timeGroupModal" class="modal" style="display: none;">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 id="timeGroupModalTitle"></h3>
+                            <button class="modal-close" onclick="closeTimeGroupModal()">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="time-group-details-stats">
+                                <div class="stat-mini">
+                                    <strong>Total Tests:</strong>
+                                    <span id="groupTotalTests">0</span>
                                 </div>
-                                
-                                <h4>Test Cases</h4>
-                                <table class="tests-in-group-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Test Name</th>
-                                            <th>Status</th>
-                                            <th>Duration (ms)</th>
-                                            <th>Project</th>
-                                            <th>Tags</th>
-                                            <th>Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="testsInGroupBody">
-                                    </tbody>
-                                </table>
+                                <div class="stat-mini">
+                                    <strong>Passed:</strong>
+                                    <span id="groupPassedCount" class="badge-green">0</span>
+                                </div>
+                                <div class="stat-mini">
+                                    <strong>Failed:</strong>
+                                    <span id="groupFailedCount" class="badge-red">0</span>
+                                </div>
+                                <div class="stat-mini">
+                                    <strong>Skipped:</strong>
+                                    <span id="groupSkippedCount" class="badge-orange">0</span>
+                                </div>
+                                <div class="stat-mini">
+                                    <strong>Broken:</strong>
+                                    <span id="groupBrokenCount" class="badge-purple">0</span>
+                                </div>
+                                <div class="stat-mini">
+                                    <strong>Pass Rate:</strong>
+                                    <span id="groupPassRate">0%</span>
+                                </div>
                             </div>
+
+                            <h4>Test Cases</h4>
+                            <table class="tests-in-group-table">
+                                <thead>
+                                    <tr>
+                                        <th>Test Name</th>
+                                        <th>Status</th>
+                                        <th>Duration (ms)</th>
+                                        <th>Project</th>
+                                        <th>Tags</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="testsInGroupBody">
+                                </tbody>
+                            </table>
                         </div>
                     </div>
+                </div>
                 </section>
             </main>
         </div>
@@ -216,4 +224,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>

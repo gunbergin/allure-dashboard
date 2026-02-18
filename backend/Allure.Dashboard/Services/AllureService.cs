@@ -278,8 +278,8 @@ public class AllureService : IAllureService
 
         if (filter != null)
         {
-            if (!string.IsNullOrEmpty(filter.Project))
-                results = results.Where(r => r.Project == filter.Project);
+            if (filter.Projects?.Count > 0)
+                results = results.Where(r => !string.IsNullOrEmpty(r.Project) && filter.Projects.Contains(r.Project));
 
             if (filter.Tags?.Count > 0)
                 results = results.Where(r => r.Tags != null && filter.Tags.All(t => r.Tags.Contains(t)));
@@ -303,8 +303,8 @@ public class AllureService : IAllureService
 
         if (filter != null)
         {
-            if (!string.IsNullOrEmpty(filter.Project))
-                testRuns = testRuns.Where(r => r.Results?.Any(t => t.Project == filter.Project) ?? false);
+            if (filter.Projects?.Count > 0)
+                testRuns = testRuns.Where(r => r.Results?.Any(t => !string.IsNullOrEmpty(t.Project) && filter.Projects.Contains(t.Project)) ?? false);
 
             if (filter.Tags?.Count > 0)
                 testRuns = testRuns.Where(r => r.Results?.Any(t => t.Tags != null && filter.Tags.All(tag => t.Tags.Contains(tag))) ?? false);
@@ -366,8 +366,8 @@ public class AllureService : IAllureService
 
         if (filter != null)
         {
-            if (!string.IsNullOrEmpty(filter.Project))
-                filteredResults = filteredResults.Where(r => r.Project == filter.Project);
+            if (filter.Projects?.Count > 0)
+                filteredResults = filteredResults.Where(r => !string.IsNullOrEmpty(r.Project) && filter.Projects.Contains(r.Project));
 
             if (filter.Tags?.Count > 0)
                 filteredResults = filteredResults.Where(r => r.Tags != null && filter.Tags.All(t => r.Tags.Contains(t)));

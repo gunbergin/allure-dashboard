@@ -24,7 +24,7 @@ public class DashboardController : ControllerBase
         {
             var filter = new FilterRequest
             {
-                Project = project,
+                Projects = !string.IsNullOrEmpty(project) ? project.Split(',').ToList() : null,
                 Tags = !string.IsNullOrEmpty(tags) ? tags.Split(',').ToList() : null,
                 StartDate = !string.IsNullOrEmpty(startDate) && DateTime.TryParse(startDate, out var start) ? start : null,
                 EndDate = !string.IsNullOrEmpty(endDate) && DateTime.TryParse(endDate, out var end) ? end : null,
@@ -48,7 +48,7 @@ public class DashboardController : ControllerBase
         {
             var filter = new FilterRequest
             {
-                Project = project,
+                Projects = !string.IsNullOrEmpty(project) ? project.Split(',').ToList() : null,
                 Tags = !string.IsNullOrEmpty(tags) ? tags.Split(',').ToList() : null,
                 StartDate = !string.IsNullOrEmpty(startDate) && DateTime.TryParse(startDate, out var start) ? start : null,
                 EndDate = !string.IsNullOrEmpty(endDate) && DateTime.TryParse(endDate, out var end) ? end : null,
@@ -117,7 +117,7 @@ public class DashboardController : ControllerBase
         {
             var filter = new FilterRequest
             {
-                Project = project,
+                Projects = !string.IsNullOrEmpty(project) ? project.Split(',').ToList() : null,
                 Tags = !string.IsNullOrEmpty(tags) ? tags.Split(',').ToList() : null,
                 StartDate = !string.IsNullOrEmpty(startDate) && DateTime.TryParse(startDate, out var start) ? start : null,
                 EndDate = !string.IsNullOrEmpty(endDate) && DateTime.TryParse(endDate, out var end) ? end : null,
