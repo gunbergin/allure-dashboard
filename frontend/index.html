@@ -5,15 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Allure Test Dashboard</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
-        rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 
 <body>
@@ -54,8 +48,8 @@
         <header>
             <h1>Allure Test Dashboard</h1>
             <div class="header-actions">
-                <button id="exportBtn" title="Export to Excel"><i data-lucide="download"></i> Export Report</button>
-                <button id="refreshBtn"><i data-lucide="refresh-cw"></i> Refresh</button>
+                <button id="exportBtn" title="Export to Excel">📊 Export Report</button>
+                <button id="refreshBtn">Refresh</button>
                 <div class="last-update" id="lastUpdate">Last updated: --:--:--</div>
             </div>
         </header>
@@ -118,27 +112,22 @@
                 <!-- Statistics Cards -->
                 <section class="stats-section">
                     <div class="stat-card">
-                        <i data-lucide="layers" style="color: var(--primary-light); margin-bottom: 12px;"></i>
                         <div class="stat-value" id="totalTests">0</div>
                         <div class="stat-label">Total Tests</div>
                     </div>
                     <div class="stat-card passed">
-                        <i data-lucide="check-circle" style="color: var(--success); margin-bottom: 12px;"></i>
                         <div class="stat-value" id="passedTests">0</div>
                         <div class="stat-label">Passed</div>
                     </div>
                     <div class="stat-card failed">
-                        <i data-lucide="x-circle" style="color: var(--error); margin-bottom: 12px;"></i>
                         <div class="stat-value" id="failedTests">0</div>
                         <div class="stat-label">Failed</div>
                     </div>
                     <div class="stat-card skipped">
-                        <i data-lucide="help-circle" style="color: var(--skipped); margin-bottom: 12px;"></i>
                         <div class="stat-value" id="skippedTests">0</div>
                         <div class="stat-label">Skipped</div>
                     </div>
                     <div class="stat-card">
-                        <i data-lucide="trending-up" style="color: var(--accent); margin-bottom: 12px;"></i>
                         <div class="stat-value" id="passRate">0%</div>
                         <div class="stat-label">Pass Rate</div>
                     </div>

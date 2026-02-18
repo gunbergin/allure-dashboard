@@ -91,11 +91,6 @@ async function init() {
 
         // Update last updated timestamp
         updateLastUpdatedTime();
-
-        // Initialize icons
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
     } catch (error) {
         console.error('Initialization error:', error);
         showError('Failed to initialize dashboard');
@@ -417,26 +412,34 @@ function clearFilters() {
 
 async function refreshData() {
     const refreshBtn = document.getElementById('refreshBtn');
-    if (refreshBtn) refreshBtn.disabled = true;
-    showLoading(true);
     try {
+        // Show loading state
+        refreshBtn.disabled = true;
+        refreshBtn.innerHTML = '⟳ Refreshing...';
+        showLoadingSpinner(true);
+
+        // Call refresh endpoint
         const response = await fetch(`${API_BASE_URL}/refresh`, { method: 'POST' });
         if (!response.ok) throw new Error('Refresh request failed');
 
+        // Reload all data
         await loadProjects();
         await loadTags();
         await loadDashboard();
         await loadTestCasesByTime();
 
+        // Update last updated time
         updateLastUpdatedTime();
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+
         showSuccess('Data refreshed successfully');
     } catch (error) {
-        console.error('Refresh error:', error);
+        console.error('Error refreshing data:', error);
         showError('Failed to refresh data');
     } finally {
-        if (refreshBtn) refreshBtn.disabled = false;
-        showLoading(false);
+        // Restore button state
+        refreshBtn.disabled = false;
+        refreshBtn.innerHTML = 'Refresh';
+        showLoadingSpinner(false);
     }
 }
 
@@ -513,7 +516,7 @@ function renderTimeGroupedCards() {
                         <span class="pass-rate" style="color: ${passRateColor};">${group.passRate.toFixed(1)}%</span>
                     </div>
                     ${hasMetaRow ? `
-                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--glass-border); display: flex; flex-direction: column; gap: 8px;">
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0f5; display: flex; flex-direction: column; gap: 6px;">
                         ${uniqueProjects.length > 0 ? `<div style="display: flex; flex-wrap: wrap; gap: 4px;">${uniqueProjects.map(p => `<span class="project-chip">${escapeHtml(p)}</span>`).join('')}</div>` : ''}
                         ${uniqueTags.length > 0 ? `<div style="display: flex; flex-wrap: wrap; gap: 4px;">${uniqueTags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
                     </div>
@@ -903,62 +906,50 @@ function updateStatusChart(dailyTotals) {
                 {
                     label: 'Passed',
                     data: passed,
-                    backgroundColor: 'rgba(16, 185, 129, 0.7)',
-                    borderColor: '#10b981',
-                    borderWidth: 1,
-                    borderRadius: 8
+                    backgroundColor: '#059669',
+                    borderColor: '#059669',
+                    borderWidth: 0,
+                    borderRadius: 6
                 },
                 {
                     label: 'Failed',
                     data: failed,
-                    backgroundColor: 'rgba(239, 68, 68, 0.7)',
-                    borderColor: '#ef4444',
-                    borderWidth: 1,
-                    borderRadius: 8
+                    backgroundColor: '#dc2626',
+                    borderColor: '#dc2626',
+                    borderWidth: 0,
+                    borderRadius: 6
                 },
                 {
                     label: 'Skipped',
                     data: skipped,
-                    backgroundColor: 'rgba(148, 163, 184, 0.7)',
-                    borderColor: '#94a3b8',
-                    borderWidth: 1,
-                    borderRadius: 8
+                    backgroundColor: '#d97706',
+                    borderColor: '#d97706',
+                    borderWidth: 0,
+                    borderRadius: 6
                 },
                 {
                     label: 'Broken',
                     data: broken,
-                    backgroundColor: 'rgba(168, 85, 247, 0.7)',
-                    borderColor: '#a855f7',
-                    borderWidth: 1,
-                    borderRadius: 8
+                    backgroundColor: '#8b5cf6',
+                    borderColor: '#8b5cf6',
+                    borderWidth: 0,
+                    borderRadius: 6
                 }
             ]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,
             plugins: {
                 legend: {
-                    position: 'bottom',
+                    position: 'top',
                     labels: {
-                        color: '#94a3b8',
-                        usePointStyle: true,
-                        padding: 20,
-                        font: {
-                            family: 'Inter',
-                            size: 12
-                        }
+                        font: { size: 12, weight: '600' },
+                        padding: 15,
+                        color: '#1f2937'
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    titleColor: '#f8fafc',
-                    bodyColor: '#f8fafc',
-                    borderColor: 'rgba(255, 255, 255, 0.1)',
-                    borderWidth: 1,
-                    padding: 12,
-                    displayColors: true,
-                    cornerRadius: 8,
                     callbacks: {
                         afterLabel: function (context) {
                             if (context.datasetIndex === 3) { // After broken (last dataset)
@@ -974,15 +965,11 @@ function updateStatusChart(dailyTotals) {
                 x: {
                     stacked: true,
                     ticks: {
-                        color: '#64748b',
-                        font: {
-                            family: 'Inter',
-                            size: 11
-                        }
+                        color: '#6b7280',
+                        font: { size: 12 }
                     },
                     grid: {
-                        color: 'rgba(255, 255, 255, 0.05)',
-                        borderColor: 'transparent'
+                        color: 'rgba(0, 0, 0, 0.05)'
                     }
                 },
                 y: {
@@ -990,15 +977,11 @@ function updateStatusChart(dailyTotals) {
                     beginAtZero: true,
                     ticks: {
                         stepSize: 1,
-                        color: '#64748b',
-                        font: {
-                            family: 'Inter',
-                            size: 11
-                        }
+                        color: '#6b7280',
+                        font: { size: 12 }
                     },
                     grid: {
-                        color: 'rgba(255, 255, 255, 0.05)',
-                        borderColor: 'transparent'
+                        color: 'rgba(0, 0, 0, 0.05)'
                     }
                 }
             }
@@ -1010,6 +993,7 @@ function updateBreakdownChart(statusCounts) {
     const ctx = document.getElementById('breakdownChart');
     if (!ctx) return;
 
+    const colors = ['#059669', '#dc2626', '#d97706', '#d97706'];
     const labels = ['Passed', 'Failed', 'Skipped', 'Broken'];
     const data = [
         statusCounts.PASSED || 0,
@@ -1023,53 +1007,53 @@ function updateBreakdownChart(statusCounts) {
     }
 
     breakdownChart = new Chart(ctx, {
-        type: 'doughnut',
+        type: 'bar',
         data: {
             labels: labels,
             datasets: [{
                 label: 'Test Count',
                 data: data,
-                backgroundColor: [
-                    'rgba(16, 185, 129, 0.8)', // Passed
-                    'rgba(239, 68, 68, 0.8)',  // Failed
-                    'rgba(148, 163, 184, 0.8)', // Skipped
-                    'rgba(168, 85, 247, 0.8)'  // Broken
-                ],
-                borderColor: [
-                    '#10b981',
-                    '#ef4444',
-                    '#94a3b8',
-                    '#a855f7'
-                ],
-                borderWidth: 2,
-                hoverOffset: 15,
-                borderRadius: 5
+                backgroundColor: colors,
+                borderColor: colors,
+                borderWidth: 0,
+                borderRadius: 6,
+                hoverBackgroundColor: ['#059669', '#dc2626', '#d97706', '#d97706']
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,
+            indexAxis: 'y',
             plugins: {
                 legend: {
-                    position: 'bottom',
+                    display: true,
                     labels: {
-                        color: '#94a3b8',
-                        usePointStyle: true,
-                        padding: 20,
-                        font: {
-                            family: 'Inter',
-                            size: 12
-                        }
+                        font: { size: 12, weight: '600' },
+                        padding: 15,
+                        color: '#1f2937'
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1,
+                        color: '#6b7280',
+                        font: { size: 12 }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
                     }
                 },
-                tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    titleColor: '#f8fafc',
-                    bodyColor: '#f8fafc',
-                    borderColor: 'rgba(255, 255, 255, 0.1)',
-                    borderWidth: 1,
-                    padding: 12,
-                    cornerRadius: 8
+                y: {
+                    ticks: {
+                        color: '#6b7280',
+                        font: { size: 12, weight: '600' }
+                    },
+                    grid: {
+                        display: false
+                    }
                 }
             }
         }
@@ -1083,11 +1067,11 @@ async function generateExcelReport() {
 
         // Fetch current filtered data
         const params = new URLSearchParams();
-        if (currentFilters.projects.length > 0) params.append('projects', currentFilters.projects.join(','));
+        if (currentFilters.project) params.append('project', currentFilters.project);
         if (currentFilters.tags.length > 0) params.append('tags', currentFilters.tags.join(','));
         if (currentFilters.startDate) params.append('startDate', currentFilters.startDate);
         if (currentFilters.endDate) params.append('endDate', currentFilters.endDate);
-        if (currentFilters.statuses.length > 0) params.append('statuses', currentFilters.statuses.join(','));
+        if (currentFilters.status) params.append('status', currentFilters.status);
 
         const response = await fetch(`${API_BASE_URL}/results?${params}`);
         if (!response.ok) throw new Error('Failed to fetch results');
@@ -1208,10 +1192,10 @@ function applyDataStyle(sheet, rowCount) {
 // Apply status-based coloring for status column
 function applyStatusColorCondition(sheet, rowCount) {
     const statusColors = {
-        PASSED: 'FF10B981',
-        FAILED: 'FFEF4444',
-        SKIPPED: 'FF94A3B8',
-        BROKEN: 'FFA855F7'
+        PASSED: 'FF059669',
+        FAILED: 'FFDC2626',
+        SKIPPED: 'FFD97706',
+        BROKEN: 'FF7C3AED'
     };
 
     const dataStyle = {
