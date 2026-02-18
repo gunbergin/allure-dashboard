@@ -375,19 +375,23 @@ function renderTimeGroupedCards() {
         const passRateColor = group.passRate >= 80 ? '#059669' : group.passRate >= 50 ? '#d97706' : '#dc2626';
         // Extract unique projects from all test cases in this group, show only last segment (e.g. "Nova/Feature/BES" → "BES")
         const uniqueProjects = [...new Set(group.testCases.map(test => test.project).filter(Boolean).map(p => p.split('/').pop()))].sort();
-        const projectsHtml = uniqueProjects.length > 0 ? `<div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">${uniqueProjects.map(p => `<span style="background: #eef2ff; color: #4338ca; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px;">${escapeHtml(p)}</span>`).join('')}</div>` : '';
         // Extract unique tags from all test cases in this group
         const uniqueTags = [...new Set(group.testCases.flatMap(test => test.tags || []))].sort();
-        const tagsHtml = uniqueTags.length > 0 ? `<div class="time-group-tags">${uniqueTags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : '';
+        const hasMetaRow = uniqueProjects.length > 0 || uniqueTags.length > 0;
         return `
             <div class="time-group-card" onclick="showTimeGroupDetails(${index})" style="cursor: pointer;">
                 <div class="time-group-header">
-                    <div>
-                        <h3>${group.timeGroup}</h3>
-                        ${projectsHtml}
-                        ${tagsHtml}
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0;">${group.timeGroup}</h3>
+                        <span class="pass-rate" style="color: ${passRateColor};">${group.passRate.toFixed(1)}%</span>
                     </div>
-                    <span class="pass-rate" style="color: ${passRateColor};">${group.passRate.toFixed(1)}%</span>
+                    ${hasMetaRow ? `
+                    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0f5;">
+                        ${uniqueProjects.map(p => `<span class="project-chip">${escapeHtml(p)}</span>`).join('')}
+                        ${uniqueProjects.length > 0 && uniqueTags.length > 0 ? '<span style="color: #d1d5db; font-size: 14px;">·</span>' : ''}
+                        ${uniqueTags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+                    </div>
+                    ` : ''}
                 </div>
                 <div class="time-group-stats">
                     <span class="stat-badge passed">${group.passedCount} Passed</span>
