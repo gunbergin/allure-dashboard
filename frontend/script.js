@@ -386,10 +386,9 @@ function renderTimeGroupedCards() {
                         <span class="pass-rate" style="color: ${passRateColor};">${group.passRate.toFixed(1)}%</span>
                     </div>
                     ${hasMetaRow ? `
-                    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0f5;">
-                        ${uniqueProjects.map(p => `<span class="project-chip">${escapeHtml(p)}</span>`).join('')}
-                        ${uniqueProjects.length > 0 && uniqueTags.length > 0 ? '<span style="color: #d1d5db; font-size: 14px;">·</span>' : ''}
-                        ${uniqueTags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0f5; display: flex; flex-direction: column; gap: 6px;">
+                        ${uniqueProjects.length > 0 ? `<div style="display: flex; flex-wrap: wrap; gap: 4px;">${uniqueProjects.map(p => `<span class="project-chip">${escapeHtml(p)}</span>`).join('')}</div>` : ''}
+                        ${uniqueTags.length > 0 ? `<div style="display: flex; flex-wrap: wrap; gap: 4px;">${uniqueTags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
                     </div>
                     ` : ''}
                 </div>
