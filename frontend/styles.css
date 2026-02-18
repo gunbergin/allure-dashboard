@@ -539,6 +539,8 @@ header h1 {
     border-radius: 20px;
     box-shadow: var(--glass-shadow);
     border: 1px solid var(--glass-border);
+    position: relative;
+    height: 400px;
 }
 
 .chart-container h3 {
