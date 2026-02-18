@@ -424,6 +424,7 @@ function renderTimeGroupedTable() {
                 <tr>
                     <th>Time Group</th>
                     <th>Project</th>
+                    <th>Tags</th>
                     <th>Pass Rate</th>
                     <th>Total</th>
                     <th>Passed</th>
@@ -439,10 +440,12 @@ function renderTimeGroupedTable() {
         const rowClass = hasFailed ? 'failed-row' : '';
         const passRateColor = group.passRate >= 80 ? '#059669' : group.passRate >= 50 ? '#d97706' : '#dc2626';
         const uniqueProjects = [...new Set(group.testCases.map(test => test.project).filter(Boolean).map(p => p.split('/').pop()))].sort();
+        const uniqueTags = [...new Set(group.testCases.flatMap(test => test.tags || []))].sort();
         return `
                         <tr class="${rowClass}">
                             <td><strong>${escapeHtml(group.timeGroup)}</strong></td>
-                            <td><div style="display: flex; flex-wrap: wrap; gap: 4px;">${uniqueProjects.map(p => `<span style="background: #eef2ff; color: #4338ca; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px;">${escapeHtml(p)}</span>`).join('') || '-'}</div></td>
+                            <td><div style="display: flex; flex-wrap: wrap; gap: 4px;">${uniqueProjects.map(p => `<span class="project-chip">${escapeHtml(p)}</span>`).join('') || '-'}</div></td>
+                            <td><div style="display: flex; flex-wrap: wrap; gap: 4px;">${uniqueTags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('') || '-'}</div></td>
                             <td>
                                 <span class="pass-rate" style="color: ${passRateColor};">
                                     ${group.passRate.toFixed(1)}%
