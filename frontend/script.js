@@ -16,6 +16,7 @@ let currentTestRuns = [];
 let timeGroupedTestCases = [];
 let statusChart = null;
 let breakdownChart = null;
+let lastGroupIndex = null;
 let currentTimeGroupView = 'card'; // 'card' or 'table'
 
 // Initialize the dashboard
@@ -651,6 +652,10 @@ function showTimeGroupTestDetails(groupIndex, testIndex) {
     if (!group || !group.testCases || !group.testCases[testIndex]) return;
 
     const test = group.testCases[testIndex];
+    lastGroupIndex = groupIndex;
+
+    // Show back button
+    document.getElementById('modalBack').style.display = 'flex';
 
     // Update details modal
     document.getElementById('modalTitle').textContent = test.name;
@@ -731,6 +736,10 @@ function escapeHtml(text) {
 function showTestDetails(index) {
     const result = currentResults[index];
     if (!result) return;
+
+    lastGroupIndex = null;
+    // Hide back button
+    document.getElementById('modalBack').style.display = 'none';
 
     // Update modal header and details
     document.getElementById('modalTitle').textContent = result.name;
@@ -826,6 +835,13 @@ function showModal() {
 function closeDetailsModal() {
     document.getElementById('detailsModal').style.display = 'none';
     document.body.style.overflow = 'auto';
+}
+
+function goBackFromDetails() {
+    closeDetailsModal();
+    if (lastGroupIndex !== null) {
+        showTimeGroupDetails(lastGroupIndex);
+    }
 }
 
 function openImageLightbox(imageUrl, fileName) {

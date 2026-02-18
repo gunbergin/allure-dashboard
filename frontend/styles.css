@@ -561,13 +561,35 @@ header h1 {
     padding: 20px;
     border-bottom: 1px solid #e5e7eb;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
+    gap: 15px;
+}
+
+.modal-back {
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #4b5563;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+}
+
+.modal-back:hover {
+    background: #e5e7eb;
+    color: #111827;
+    border-color: #9ca3af;
 }
 
 .modal-header h3 {
     margin: 0;
     color: #1f2937;
+    margin-right: auto;
 }
 
 .modal-close {
